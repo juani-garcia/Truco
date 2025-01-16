@@ -62,7 +62,9 @@ executable truco
     other-modules:
         Game.Deck,
         Game.Mechanics,
-        Game.Core
+        Game.Core,
+        Game.Types,
+        Utils
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

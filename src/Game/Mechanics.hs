@@ -1,6 +1,6 @@
 module Game.Mechanics where
 
-import Game.Deck
+import Game.Types
 
 -- Envido calculations
 suited :: Card -> Card -> Bool
@@ -25,50 +25,19 @@ envido (c1, c2, c3) = maximum
     , pairwiseEnvido c2 c3
     ]
 
--- Round mechanics
--- data State = 
---       Initial
---     | EnvidoCalled Int
---     | EnvidoEnded -- Either called or not
---     | TrucoCalled Int
---     | Truco Int
---     | Finished
---     deriving (Show, Eq)
-
--- data Action =
---       Play
---     | CallEnvido
---     | CallTruco
---     | Accept
---     | Reject
---     | Fold
-
--- possibleActions :: State -> [Action]
--- possibleActions Initial          = [Play, CallEnvido, CallTruco, Fold]
--- possibleActions (EnvidoCalled _) = [Accept, Reject]
--- possibleActions EnvidoEnded      = [Play, CallTruco, Fold]
--- possibleActions (TrucoCalled _)  = [Accept, Reject]
--- possibleActions (Truco _)        = [Play, Fold]
--- possibleActions Finished         = []
-
--- transition :: State -> Action -> Maybe State
--- transition Initial          Play       = Just Initial
--- transition Initial          CallEnvido = Just (EnvidoCalled 2)
--- transition Initial          CallTruco  = Just (TrucoCalled 2)
--- transition (EnvidoCalled _) _          = Just EnvidoEnded
--- transition EnvidoEnded      Play       = Just EnvidoEnded
--- transition EnvidoEnded      CallTruco  = Just (TrucoCalled 2)
--- transition (TrucoCalled _)  Accept     = Just (Truco 2)
--- transition (TrucoCalled _)  Reject     = Just Finished
--- transition (Truco n)        Play       = Just (Truco n)
--- transition _                Fold       = Just Finished
--- transition _                _          = Nothing
-
--- data Player = Player1 | Player2 deriving (Show, Eq)
-
--- type Points = (Int, Int)
-
--- addPoints :: Points -> Player -> Int -> Points
--- addPoints (p1, p2) Player1 n = (p1 + n, p2)
--- addPoints (p1, p2) Player2 n = (p1, p2 + n)
+analyzeRounds :: Player -> [RoundResult] -> HandResult
+analyzeRounds starter rs
+    | length rs <= 1                                       = NotFinished
+    | wonByPlayer P1 rs >= 2                               = HandWonBy P1
+    | wonByPlayer P2 rs >= 2                               = HandWonBy P2
+    | length rs == 2 && head rs /= Tie && rs !! 1 /= Tie   = NotFinished
+    | head rs /= Tie && (rs !! 1 == Tie || rs !! 2 == Tie) = HandWonBy (winnerOfRound (head rs)) -- "Primera vale doble"
+    | head rs == Tie && rs !! 1 /= Tie                     = HandWonBy (winnerOfRound (rs !! 1)) -- "Como parda la mejor"
+    | head rs == Tie && rs !! 1 == Tie && rs !! 2 /= Tie   = HandWonBy (winnerOfRound (rs !! 2)) 
+    | head rs == Tie && rs !! 1 == Tie && rs !! 2 == Tie   = HandWonBy starter                   -- "Gana la mano"
+    | otherwise                                            = NotFinished
+  where
+    winnerOfRound (RoundWonBy p) = p
+    winnerOfRound Tie = error "Unexpected Tie"
+    wonByPlayer p rs' = length $ filter (== RoundWonBy p) rs'
 

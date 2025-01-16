@@ -5,7 +5,6 @@ module Game.Deck
     , createDeck
     , deal
     , CardHand
-    , showHand
     ) where
 
 import System.Random (randomRIO)
@@ -52,9 +51,6 @@ createDeck =
     ]
 
 type CardHand = (Card, Card, Card)
-
-showHand :: CardHand -> String
-showHand (c1, c2, c3) = show c1 ++ ", " ++ show c2 ++ ", " ++ show c3
 
 shuffle :: [a] -> IO [a]
 shuffle xs = do

@@ -4,6 +4,8 @@ import Game.Deck
 import Game.Core
 import System.IO (hFlush, stdout)
 import Text.Printf (printf)
+import Control.Monad (when)
+import Data.List (intercalate)
 
 -- Initialize a new HandState
 initializeHandState :: Player -> HandState
@@ -15,35 +17,39 @@ toList (c1, c2, c3) = [c1, c2, c3]
 
 chooseCard :: Player -> CardHand -> [(Player, Card)] -> IO Card
 chooseCard player hand played = do
-    -- Display the player's current hand
-    putStrLn $ show player ++ ", your hand is: " ++ showHand hand
-    putStrLn "Enter the number of the card to play (1, 2, or 3):"
+    let available = filter (\c -> not $ wasPlayed c played) (toList hand)
+    when (null available) $ error "No available cards to play"
+    putStrLn $ printf "%s - your hand is: %s" (show player) $ intercalate ", " (map show available)
+    putStrLn $ printf "Enter the number of the card to play:"
+    putStrLn $ formatAvailableCards available
     hFlush stdout
     input <- getLine
-    let selected = inputToSelection input
+    let selected = inputToSelection input available
     case selected of
         Nothing -> do
             putStrLn "Invalid input. Please try again."
             chooseCard player hand played
         Just c  -> do
-            if wasPlayed c played
-                then do
-                    putStrLn "This card has already been played. Please try again."
-                    chooseCard player hand played
-                else return c
+            return c
     where
-    fst3 (x, _, _) = x
-    snd3 (_, y, _) = y
-    trd3 (_, _, z) = z
-    inputToSelection input = case input of
-        "1" -> Just $ fst3 hand
-        "2" -> Just $ snd3 hand
-        "3" -> Just $ trd3 hand
-        _   -> Nothing
+        formatCard :: Int -> Card -> String
+        formatCard n card = printf "  %d- %s" n (show card)
 
-cardsPlayedToString :: [(Player, Card)] -> String
-cardsPlayedToString [] = ""
-cardsPlayedToString ((p, c):xs) = printf "Player %s played: %s\n" (show p) (show c) ++ cardsPlayedToString xs
+        formatAvailableCards :: [Card] -> String
+        formatAvailableCards cards = intercalate "\n" $ zipWith formatCard [1..] cards
+        
+        inputToSelection input available =
+            let n = read input
+             in if n <= 0 || n > length available + 1
+                then Nothing
+                else Just (available !! (n - 1))
+
+cardPlayedToString :: (Player, Card) -> String
+cardPlayedToString (p, c) = printf "Player %s played: %s" (show p) (show c)
+
+formatRoundResult :: RoundResult -> Int -> String
+formatRoundResult Tie            = printf "Round %d was tied!"
+formatRoundResult (RoundWonBy p) = printf "Player %s won round %d!" (show p)
 
 wasPlayed :: Card -> [(Player, Card)] -> Bool
 wasPlayed card played = card `elem` map snd played
@@ -53,23 +59,25 @@ playRound :: Player -> HandState -> CardHand -> CardHand -> IO (HandState, Playe
 playRound starter state hand1 hand2 = do
     -- Clear the terminal
     clearTerminal
-    putStrLn $ printf "--- Round %d ---" (length (roundResults state) + 1)
+    let n = length (roundResults state) + 1
+    putStrLn $ printf "--- Round %d ---" n
 
     let played = cardsPlayed state
-    putStr $ cardsPlayedToString played
-    -- Player 1 selects a card
-    card1 <- chooseCard P1 hand1 played
-    -- Player 2 selects a card
-    card2 <- chooseCard P2 hand2 played
+    mapM_ (putStrLn . cardPlayedToString) played
+    mapM_ putStrLn $ zipWith formatRoundResult (roundResults state) [1..]
 
-    -- Display the cards played by both players
-    putStrLn $ "Player 1 played: " ++ show card1
-    putStrLn $ "Player 2 played: " ++ show card2
+    let (first, firstHand, second, secondHand) = case starter of
+            P1 -> (P1, hand1, P2, hand2)
+            P2 -> (P2, hand2, P1, hand1)
 
-    -- Determine the round winner
-    let roundResult = case compare card1 card2 of
-            GT -> RoundWonBy P1
-            LT -> RoundWonBy P2
+    fstCard <- chooseCard first firstHand played
+    putStrLn $ cardPlayedToString (first, fstCard)
+    sndCard <- chooseCard second secondHand ((first, fstCard) : played)
+    putStrLn $ cardPlayedToString (second, sndCard)
+
+    let roundResult = case compare fstCard sndCard of
+            GT -> RoundWonBy first
+            LT -> RoundWonBy second
             EQ -> Tie
 
     -- Announce the round result
@@ -84,8 +92,8 @@ playRound starter state hand1 hand2 = do
             Tie          -> starter
 
     -- Update and return the new HandState
-    let newState = state { 
-            cardsPlayed = cardsPlayed state ++ [(P1, card1), (P2, card2)],
+    let newState = state {
+            cardsPlayed = cardsPlayed state ++ [(first, fstCard), (second, sndCard)],
             roundResults = roundResults state ++ [roundResult]
         }
     return (newState, nextStarter)

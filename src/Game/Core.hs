@@ -11,14 +11,15 @@ import Data.List
 
 initialHandState :: Player -> CardHand -> CardHand -> HandState
 initialHandState p h1 h2 = HS
-    { hands        = (h1, h2)
-    , actions      = []
-    , cardsPlayed  = []
-    , roundResults = []
-    , currentRound = []
-    , bettingState = NoBetting
-    , startedBy    = p
-    , currentPlayer   = p
+    { hands         = (h1, h2)
+    , actions       = []
+    , cardsPlayed   = []
+    , roundResults  = []
+    , currentRound  = []
+    , bettingState  = NoBetting
+    , startedBy     = p
+    , currentPlayer = p
+    , trucoPoints   = 1
     }
 
 chooseAction :: Player -> HandState -> IO Action
@@ -29,8 +30,7 @@ chooseAction p s = do
         len = length pas
     putStrLn $ printf "Tu mano es: %s." (intercalate ", " $ map show acs)
     unless (len > 0) $ error "No hay acciones válidas para realizar."
-    forM_ (zip ([1..] :: [Int]) pas) $ \(i, a) -> do
-        putStrLn $ printf "  %d. %s" i (show a)
+    forM_ (zip ([1..] :: [Int]) pas) $ \(i, a) -> putStrLn $ printf "  %d. %s" i (show a)
     putStrLn "Elegí una de las opciones:"
     input <- getInput len
     unless (inBound len input) $ error "Entrada inválida."
@@ -60,10 +60,10 @@ handLoop s = do
             putStrLn "Acción inválida. Por favor, intente nuevamente."
             handLoop s
         Just s' -> do
-            let result = analyzeHands s'
+            let result = analyzeHand s'
             case result of
                 NotFinished -> handLoop s'
-                HandWonBy p -> putStrLn $ printf "¡El jugador %s ganó la mano!" (show p)
+                HandWonBy p -> putStrLn $ printf "¡El jugador %s ganó %d puntos!" (show p) (getPoints p s')
     where
         curr = currentPlayer s
 

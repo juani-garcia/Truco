@@ -80,4 +80,5 @@ data HandState = HS
     , bettingState  :: BettingState
     , startedBy     :: Player              -- Quién es "mano"
     , currentPlayer :: Player
+    , trucoPoints   :: Int
     } deriving (Show)

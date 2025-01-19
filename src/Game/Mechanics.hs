@@ -33,9 +33,9 @@ analyzeRounds starter rs
         winnerOfRound Tie = error "Unexpected Tie"
         wonByPlayer p rs' = length $ filter (== RoundWonBy p) rs'
 
-analyzeHands :: HandState -> HandResult
-analyzeHands s@HS { bettingState = HandEnded } = HandWonBy $ currentPlayer s
-analyzeHands s                                 = analyzeRounds (startedBy s) (roundResults s)
+analyzeHand :: HandState -> HandResult
+analyzeHand s@HS { bettingState = HandEnded } = HandWonBy $ currentPlayer s
+analyzeHand s                                 = analyzeRounds (startedBy s) (roundResults s)
 
 possibleActions :: HandState -> [ActionOpt]
 possibleActions hs
@@ -66,11 +66,18 @@ applyAction s a = do
         nextPlayer = case mr of
             Just (RoundWonBy p) -> p
             Just Tie            -> startedBy s
-            Nothing             -> theOther $ currentPlayer s 
+            Nothing             -> theOther $ currentPlayer s
+        tp = if bs == TrucoAccepted then 2 else trucoPoints s
     return s { actions       = actions s ++ [(currentPlayer s, a)]
              , cardsPlayed   = cp
              , bettingState  = bs
              , currentPlayer = nextPlayer
              , currentRound  = if length cr == 2 then [] else cr
              , roundResults  = rs
+             , trucoPoints   = tp
              }
+
+getPoints :: Player -> HandState -> Int
+getPoints p s = case analyzeHand s of
+    HandWonBy p' -> if p == p' then trucoPoints s else 0
+    NotFinished  -> 0

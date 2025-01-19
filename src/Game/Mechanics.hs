@@ -34,7 +34,7 @@ analyzeRounds starter rs
         wonByPlayer p rs' = length $ filter (== RoundWonBy p) rs'
 
 analyzeHands :: HandState -> HandResult
-analyzeHands s@HS { bettingState = HandEnded } = HandWonBy $ nextToPlay s
+analyzeHands s@HS { bettingState = HandEnded } = HandWonBy $ currentPlayer s
 analyzeHands s                                 = analyzeRounds (startedBy s) (roundResults s)
 
 possibleActions :: HandState -> [ActionOpt]
@@ -59,18 +59,18 @@ applyAction :: HandState -> Action -> Maybe HandState
 applyAction s a = do
     bs <- newBettingState s a
     let (cp, cr) = case a of
-            PlayCard c -> (cardsPlayed s ++ [(nextToPlay s, c)], currentRound s ++ [(nextToPlay s, c)])
+            PlayCard c -> (cardsPlayed s ++ [(currentPlayer s, c)], currentRound s ++ [(currentPlayer s, c)])
             _          -> (cardsPlayed s, currentRound s)
         mr  = getResult cr
         rs = roundResults s ++ maybeToList mr
-        next = case mr of
+        nextPlayer = case mr of
             Just (RoundWonBy p) -> p
             Just Tie            -> startedBy s
-            Nothing             -> theOther $ nextToPlay s 
-    return s { actions      = actions s ++ [(nextToPlay s, a)]
-             , cardsPlayed  = cp
-             , bettingState = bs
-             , nextToPlay   = next
-             , currentRound = if length cr == 2 then [] else cr
-             , roundResults = rs
+            Nothing             -> theOther $ currentPlayer s 
+    return s { actions       = actions s ++ [(currentPlayer s, a)]
+             , cardsPlayed   = cp
+             , bettingState  = bs
+             , currentPlayer = nextPlayer
+             , currentRound  = if length cr == 2 then [] else cr
+             , roundResults  = rs
              }

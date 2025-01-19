@@ -72,12 +72,12 @@ type PlayerCard   = (Player, Card)
 type PlayerAction = (Player, Action)
 
 data HandState = HS
-    { hands          :: (CardHand, CardHand)
-    , actions        :: [PlayerAction]      -- Qué hizo cada jugador
-    , cardsPlayed    :: [PlayerCard]        -- Se puede derivar del campo anterior, pero más fácil tenerlo aparte
-    , roundResults   :: [RoundResult]
-    , currentRound   :: [PlayerCard]
-    , bettingState   :: BettingState
-    , startedBy      :: Player              -- Quién es "mano"
-    , nextToPlay     :: Player
+    { hands         :: (CardHand, CardHand)
+    , actions       :: [PlayerAction]      -- Qué hizo cada jugador
+    , cardsPlayed   :: [PlayerCard]        -- Se puede derivar del campo anterior, pero más fácil tenerlo aparte
+    , roundResults  :: [RoundResult]
+    , currentRound  :: [PlayerCard]
+    , bettingState  :: BettingState
+    , startedBy     :: Player              -- Quién es "mano"
+    , currentPlayer :: Player
     } deriving (Show)

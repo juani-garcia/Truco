@@ -18,7 +18,7 @@ initialHandState p h1 h2 = HS
     , currentRound = []
     , bettingState = NoBetting
     , startedBy    = p
-    , nextToPlay   = p
+    , currentPlayer   = p
     }
 
 chooseAction :: Player -> HandState -> IO Action
@@ -36,7 +36,7 @@ chooseAction p s = do
     unless (inBound len input) $ error "Entrada inválida."
     return $ pas !! (input - 1)
     where
-        hand = case nextToPlay s of
+        hand = case currentPlayer s of
             P1 -> fst (hands s)
             P2 -> snd (hands s) 
         availableCards = filter (not . (`elem` map snd (cardsPlayed s))) $ toCardList hand
@@ -53,7 +53,7 @@ chooseAction p s = do
 handLoop :: HandState -> IO ()
 handLoop s = do
     printHandState s
-    action <- chooseAction next s
+    action <- chooseAction curr s
     let ms = applyAction s action
     case ms of
         Nothing -> do
@@ -65,7 +65,7 @@ handLoop s = do
                 NotFinished -> handLoop s'
                 HandWonBy p -> putStrLn $ printf "¡El jugador %s ganó la mano!" (show p)
     where
-        next = nextToPlay s
+        curr = currentPlayer s
 
 playHand :: IO ()
 playHand = do

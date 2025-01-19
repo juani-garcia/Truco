@@ -1,6 +1,9 @@
 module Main where
 
-import Game.Core (playGame)
+import Game.Core (playHand)
 
 main :: IO ()
-main = playGame
+main = do
+    putStrLn "Bienvenido al juego de truco. Pulse ENTER para comenzar."
+    _ <- getLine
+    playHand

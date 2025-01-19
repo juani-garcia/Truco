@@ -1,115 +1,73 @@
-module Game.Core where
+module Game.Core (playHand) where
 
-import Game.Deck
 import Game.Types
 import Game.Mechanics
-import System.IO        (hFlush, stdout)
 import Text.Printf      (printf)
-import Text.Read        (readMaybe)
-import Control.Monad    (when)
-import Data.List        (intercalate)
+import Game.Utils
+import Control.Monad    (forM_, unless)
+import Text.Read (readMaybe)
+import Game.Deck
+import Data.List
 
-initializeHandState :: Player -> HandState
-initializeHandState starter = HandState { cardsPlayed = [], roundResults = [], startedBy = starter }
+initialHandState :: Player -> CardHand -> CardHand -> HandState
+initialHandState p h1 h2 = HS
+    { hands        = (h1, h2)
+    , actions      = []
+    , cardsPlayed  = []
+    , roundResults = []
+    , currentRound = []
+    , bettingState = NoBetting
+    , startedBy    = p
+    , nextToPlay   = p
+    }
 
-toList :: CardHand -> [Card]
-toList (c1, c2, c3) = [c1, c2, c3]
+chooseAction :: Player -> HandState -> IO Action
+chooseAction p s = do
+    putStrLn $ printf "%s, es tu turno." (show p)
+    let acs = availableCards
+        pas = optsToActions (possibleActions s) acs
+        len = length pas
+    putStrLn $ printf "Tu mano es: %s." (intercalate ", " $ map show acs)
+    unless (len > 0) $ error "No hay acciones válidas para realizar."
+    forM_ (zip ([1..] :: [Int]) pas) $ \(i, a) -> do
+        putStrLn $ printf "  %d. %s" i (show a)
+    putStrLn "Elegí una de las opciones:"
+    input <- getInput len
+    unless (inBound len input) $ error "Entrada inválida."
+    return $ pas !! (input - 1)
+    where
+        hand = case nextToPlay s of
+            P1 -> fst (hands s)
+            P2 -> snd (hands s) 
+        availableCards = filter (not . (`elem` map snd (cardsPlayed s))) $ toCardList hand
+        inBound l i = i >= 1 && i <= l
+        getInput :: Int -> IO Int
+        getInput l = do
+            input <- getLine
+            case readMaybe input of
+                Just n | inBound l n -> return n
+                _                          -> do
+                    putStrLn $ printf "Entrada inválida. Por favor, ingrese un número entre 1 y %d." l
+                    getInput l
 
-chooseCard :: Player -> CardHand -> [(Player, Card)] -> IO Card
-chooseCard player hand played = do
-    let available = filter (\c -> not $ wasPlayed c played) (toList hand)
-    when (null available) $ error "No hay cartas disponibles para jugar"
-    putStrLn $ printf "%s, tu mano es: %s" (show player) $ intercalate ", " (map show available)
-    putStrLn $ printf "Ingresa el número de la carta para jugarla:"
-    putStrLn $ formatAvailableCards available
-    hFlush stdout
-    input <- getLine
-    let selected = inputToSelection input available
-    case selected of
+handLoop :: HandState -> IO ()
+handLoop s = do
+    printHandState s
+    action <- chooseAction next s
+    let ms = applyAction s action
+    case ms of
         Nothing -> do
-            putStrLn "Entrada inválida. Por favor, intente nuevamente."
-            chooseCard player hand played
-        Just c  -> do
-            return c
+            putStrLn "Acción inválida. Por favor, intente nuevamente."
+            handLoop s
+        Just s' -> do
+            let result = analyzeHands s'
+            case result of
+                NotFinished -> handLoop s'
+                HandWonBy p -> putStrLn $ printf "¡El jugador %s ganó la mano!" (show p)
     where
-        formatCard :: Int -> Card -> String
-        formatCard n card = printf "  %d- %s" n (show card)
+        next = nextToPlay s
 
-        formatAvailableCards :: [Card] -> String
-        formatAvailableCards cards = intercalate "\n" $ zipWith formatCard [1..] cards
-
-        inputToSelection input available = do
-            n <- readMaybe input
-            if n <= 0 || n > length available
-                then Nothing
-                else Just (available !! (n - 1))
-
-cardPlayedToString :: (Player, Card) -> String
-cardPlayedToString (p, c) = printf "El jugador %s jugó: %s" (show p) (show c)
-
-formatRoundResult :: RoundResult -> Int -> String
-formatRoundResult Tie            = printf "¡La ronda %d terminó empatada!"
-formatRoundResult (RoundWonBy p) = printf "¡El jugador %s ganó la ronda %d!" (show p)
-
-wasPlayed :: Card -> [(Player, Card)] -> Bool
-wasPlayed card played = card `elem` map snd played
-
-playRound :: Player -> HandState -> CardHand -> CardHand -> IO (HandState, Player)
-playRound starter state hand1 hand2 = do
-    clearTerminal
-    let n = length (roundResults state) + 1
-    putStrLn $ printf "--- Ronda %d ---" n
-
-    let played = cardsPlayed state
-    mapM_ (putStrLn . cardPlayedToString) played
-    mapM_ putStrLn $ zipWith formatRoundResult (roundResults state) [1..]
-
-    let (first, firstHand, second, secondHand) = case starter of
-            P1 -> (P1, hand1, P2, hand2)
-            P2 -> (P2, hand2, P1, hand1)
-
-    fstCard <- chooseCard first firstHand played
-    putStrLn $ cardPlayedToString (first, fstCard)
-    sndCard <- chooseCard second secondHand ((first, fstCard) : played)
-    putStrLn $ cardPlayedToString (second, sndCard)
-
-    let roundResult = case compare fstCard sndCard of
-            GT -> RoundWonBy first
-            LT -> RoundWonBy second
-            EQ -> Tie
-
-    putStrLn $ formatRoundResult roundResult n
-
-    let nextStarter = case roundResult of
-            RoundWonBy p -> p
-            Tie          -> starter
-
-    let newState = state {
-            cardsPlayed = cardsPlayed state ++ [(first, fstCard), (second, sndCard)],
-            roundResults = roundResults state ++ [roundResult]
-        }
-    return (newState, nextStarter)
-    where
-        clearTerminal = do
-            putStr "\ESC[2J"
-            putStr "\ESC[H"
-
-playGame :: IO ()
-playGame = do
-    hands <- deal 2
-    let (hand1, hand2) = (head hands, hands !! 1)
-    playRounds (initializeHandState P1) P1 hand1 hand2
-    where
-        playRounds :: HandState -> Player -> CardHand -> CardHand -> IO ()
-        playRounds state starter h1 h2 = do
-            let results = roundResults state
-            let handResult = analyzeRounds (startedBy state) results
-            case handResult of
-                HandWonBy p -> do
-                    putStrLn "--- Terminó la mano ---"
-                    putStrLn $ printf "¡El jugador %s ganó la mano!" (show p)
-                NotFinished -> do
-                    when (length results >= 3) $ error "La mano debería haber terminado"
-                    (newState, nextStarter) <- playRound starter state h1 h2
-                    playRounds newState nextStarter h1 h2
-
+playHand :: IO ()
+playHand = do
+    [h1, h2] <- deal 2 
+    handLoop $ initialHandState P1 h1 h2

@@ -1,7 +1,7 @@
 module Game.Deck where
 
 import Game.Types
-import Utils
+import Game.Utils
 
 createDeck :: Deck
 createDeck =

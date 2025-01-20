@@ -2,7 +2,7 @@ module Game.Utils where
 
 import Data.Array.IO
 import System.Random            (randomRIO)
-import Control.Monad            (forM, forM_, join, unless)
+import Control.Monad            (forM, forM_, join, unless, when)
 import Game.Types
 import Text.Printf              (printf)
 import Data.List.Extra          (upper, lower)
@@ -70,6 +70,10 @@ printHandState s = do
     unless (null as) $ putStrLn "Acciones de esta mano:"
     forM_ as $ \(p, a) -> 
         putStrLn $ printf "  %s: %s." (show p) (showPastActions a)
+
+    when (envidoPoints s > 1) $ do
+        putStrLn "Resultados del envido:"
+        printEnvido s 
     where
         roundName :: Int -> String
         roundName k = case k of
@@ -79,9 +83,27 @@ printHandState s = do
             _ -> ""
         clear = system "clear"
 
+getPlayerInfo :: Player -> (a, a) -> a
+getPlayerInfo p (x1, x2) = if p == P1 then x1 else x2
+
+printEnvido :: HandState -> IO ()
+printEnvido hs = do
+    putStrLn $ printf "  %s tiene %d" (show p1) e1
+    if e2 > e1
+        then do
+            putStrLn $ printf "  %s dice que %d son mejores." (show p2) e2
+        else do
+            putStrLn $ printf "  %s dice que %d son buenas..." (show p2) e1
+    where
+        p1 = startedBy hs
+        p2 = theOther p1
+        e1 = getPlayerInfo p1 (envidoValues hs)
+        e2 = getPlayerInfo p2 (envidoValues hs)
+
 showPastActions :: Action -> String
 showPastActions (PlayCard c) = "jugó " ++ show c
 showPastActions CallTruco    = "cantó truco"
-showPastActions Accept       = "aceptó el truco"
-showPastActions Decline      = "no quiso el truco"
+showPastActions Accept       = "aceptó"
+showPastActions Decline      = "no quiso"
 showPastActions Fold         = "se fue al mazo"
+showPastActions CallEnvido   = "cantó envido"

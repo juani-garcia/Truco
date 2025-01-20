@@ -4,7 +4,7 @@ import Game.Types
 import Game.Mechanics
 import Text.Printf      (printf)
 import Game.Utils
-import Control.Monad    (forM_, unless)
+import Control.Monad    (forM_, unless, when)
 import Text.Read (readMaybe)
 import Game.Deck
 import Data.List
@@ -20,6 +20,9 @@ initialHandState p h1 h2 = HS
     , startedBy     = p
     , currentPlayer = p
     , trucoPoints   = 1
+    , envidoPoints  = 0
+    , envidoWonBy   = Nothing
+    , envidoValues  = (envido h1, envido h2)
     }
 
 chooseAction :: Player -> HandState -> IO Action
@@ -39,7 +42,7 @@ chooseAction p s = do
         hand = case currentPlayer s of
             P1 -> fst (hands s)
             P2 -> snd (hands s) 
-        availableCards = filter (not . (`elem` map snd (cardsPlayed s))) $ toCardList hand
+        availableCards = filter (`notElem` map snd (cardsPlayed s)) $ toCardList hand
         inBound l i = i >= 1 && i <= l
         getInput :: Int -> IO Int
         getInput l = do
@@ -51,21 +54,25 @@ chooseAction p s = do
                     getInput l
 
 handLoop :: HandState -> IO ()
-handLoop s = do
-    printHandState s
-    action <- chooseAction curr s
-    let ms = applyAction s action
+handLoop hs = do
+    printHandState hs
+    action <- chooseAction curr hs
+    when (bettingState hs == EnvidoOffered && action == Accept) $ printEnvido hs
+    let ms = applyAction hs action
     case ms of
         Nothing -> do
             putStrLn "Acción inválida. Por favor, intente nuevamente."
-            handLoop s
-        Just s' -> do
-            let result = analyzeHand s'
+            handLoop hs
+        Just hs' -> do
+            let result = analyzeHand hs'
             case result of
-                NotFinished -> handLoop s'
-                HandWonBy p -> putStrLn $ printf "¡El jugador %s ganó %d puntos!" (show p) (getPoints p s')
+                NotFinished -> handLoop hs'
+                _           -> do
+                    putStrLn "¡Finalizó la mano!"
+                    putStrLn $ printf "%s obtuvo %d puntos." (show P1) (getHandPoints P1 hs')
+                    putStrLn $ printf "%s obtuvo %d puntos." (show P2) (getHandPoints P2 hs')
     where
-        curr = currentPlayer s
+        curr = currentPlayer hs
 
 playHand :: IO ()
 playHand = do

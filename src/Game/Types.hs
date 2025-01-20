@@ -45,6 +45,7 @@ data HandResult = HandWonBy Player | NotFinished deriving (Eq, Show)
 
 data Action
     = PlayCard Card
+    | CallEnvido
     | CallTruco
     | Accept
     | Decline
@@ -56,19 +57,23 @@ data ActionOpt = P (Card -> Action) | S Action
 
 instance Show Action where
     show (PlayCard c) = "Jugar " ++ show c
+    show CallEnvido   = "Cantar envido"
     show CallTruco    = "Cantar truco"
-    show Accept       = "Aceptar truco"
-    show Decline      = "Rechazar truco"
+    show Accept       = "Aceptar"
+    show Decline      = "Rechazar"
     show Fold         = "Irse al mazo"
 
 data BettingState -- Estado de las "apuestas" de la mano. Si se cantó envido o truco, si se quiso, etc. 
     = NoBetting
+    | EnvidoOffered
+    | EnvidoAccepted
     | TrucoOffered
     | TrucoAccepted
     | HandEnded -- Se fue al mazo o no quiso el truco
     deriving (Eq, Show)
 
 type PlayerCard   = (Player, Card)
+type PlayerHand   = (Player, CardHand) 
 type PlayerAction = (Player, Action)
 
 data HandState = HS
@@ -81,4 +86,7 @@ data HandState = HS
     , startedBy     :: Player              -- Quién es "mano"
     , currentPlayer :: Player
     , trucoPoints   :: Int
+    , envidoPoints  :: Int
+    , envidoWonBy   :: Maybe Player
+    , envidoValues  :: (Int, Int)
     } deriving (Show)

@@ -1,6 +1,6 @@
 module Main where
 
-import Game.Core (playHand)
+import Game.Hand (playHand)
 
 main :: IO ()
 main = do

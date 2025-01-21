@@ -62,7 +62,7 @@ executable truco
     other-modules:
         Game.Deck,
         Game.Mechanics,
-        Game.Core,
+        Game.Hand,
         Game.Types,
         Game.Utils
 

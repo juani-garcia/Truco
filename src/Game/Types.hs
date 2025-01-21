@@ -96,5 +96,5 @@ data HandState = HS
     , trucoPoints   :: Int
     , envidoPoints  :: Int
     , envidoWonBy   :: Maybe Player
-    , envidoValues  :: (Int, Int)
+    , showEnvido    :: Bool
     } deriving (Show)

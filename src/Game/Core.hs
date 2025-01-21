@@ -4,7 +4,7 @@ import Game.Types
 import Game.Mechanics
 import Text.Printf      (printf)
 import Game.Utils
-import Control.Monad    (forM_, unless, when)
+import Control.Monad    (forM_, unless)
 import Text.Read (readMaybe)
 import Game.Deck
 import Data.List
@@ -41,7 +41,7 @@ chooseAction p s = do
     where
         hand = case currentPlayer s of
             P1 -> fst (hands s)
-            P2 -> snd (hands s) 
+            P2 -> snd (hands s)
         availableCards = filter (`notElem` map snd (cardsPlayed s)) $ toCardList hand
         inBound l i = i >= 1 && i <= l
         getInput :: Int -> IO Int
@@ -57,7 +57,6 @@ handLoop :: HandState -> IO ()
 handLoop hs = do
     printHandState hs
     action <- chooseAction curr hs
-    when (bettingState hs == EnvidoOffered && action == Accept) $ printEnvido hs
     let ms = applyAction hs action
     case ms of
         Nothing -> do
@@ -76,5 +75,5 @@ handLoop hs = do
 
 playHand :: IO ()
 playHand = do
-    [h1, h2] <- deal 2 
+    [h1, h2] <- deal 2
     handLoop $ initialHandState P1 h1 h2

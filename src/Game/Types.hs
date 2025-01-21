@@ -46,7 +46,7 @@ data HandResult = HandWonBy Player | NotFinished deriving (Eq, Show)
 data Action
     = PlayCard Card
     | CallEnvido
-    -- | CallRealEnvido
+    | CallRealEnvido
     -- | CallFaltaEnvido
     | CallTruco
     | CallReTruco
@@ -62,7 +62,7 @@ data ActionOpt = P (Card -> Action) | S Action
 instance Show Action where
     show (PlayCard c)    = "Jugar " ++ show c
     show CallEnvido      = "Cantar envido"
-    -- show CallRealEnvido  = "Cantar real envido"
+    show CallRealEnvido  = "Cantar real envido"
     -- show CallFaltaEnvido = "Echar la falta"
     show CallTruco       = "Cantar truco"
     show CallReTruco     = "Cantar re truco"
@@ -73,8 +73,8 @@ instance Show Action where
 
 data BettingState -- Estado de las "apuestas" de la mano. Si se cantó envido o truco, si se quiso, etc. 
     = NoBetting
-    | EnvidoOffered
-    | EnvidoAccepted
+    | EnvidoOffered Int
+    | EnvidoAccepted Int
     | TrucoOffered Int
     | TrucoAccepted Int
     | HandEnded -- Se fue al mazo o no quiso el truco

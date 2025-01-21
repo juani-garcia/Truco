@@ -2,11 +2,12 @@ module Game.Utils where
 
 import Data.Array.IO
 import System.Random            (randomRIO)
-import Control.Monad            (forM, forM_, join, unless, when)
+import Control.Monad            (forM, forM_, join, unless)
 import Game.Types
 import Text.Printf              (printf)
 import Data.List.Extra          (upper, lower)
 import System.Process.Extra     (system)
+import Data.Maybe (isNothing)
 
 -- TODO: esto es una bolsa de gatos, emprolijar
 shuffle :: [a] -> IO [a]
@@ -70,10 +71,9 @@ printHandState s = do
     unless (null as) $ putStrLn "Acciones de esta mano:"
     forM_ as $ \(p, a) -> 
         putStrLn $ printf "  %s: %s." (show p) (showPastActions a)
+    
+    unless (isNothing $ envidoWonBy s) $ printEnvido s
 
-    when (envidoPoints s > 1) $ do
-        putStrLn "Resultados del envido:"
-        printEnvido s 
     where
         roundName :: Int -> String
         roundName k = case k of
@@ -103,6 +103,7 @@ printEnvido hs = do
 showPastActions :: Action -> String
 showPastActions (PlayCard c)   = "jugó " ++ show c
 showPastActions CallEnvido     = "cantó envido"
+showPastActions CallRealEnvido = "cantó real envido"
 showPastActions CallTruco      = "cantó truco"
 showPastActions CallReTruco    = "cantó re truco"
 showPastActions CallValeCuatro = "cantó vale cuatro"

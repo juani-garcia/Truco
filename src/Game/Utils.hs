@@ -101,9 +101,11 @@ printEnvido hs = do
         e2 = getPlayerInfo p2 (envidoValues hs)
 
 showPastActions :: Action -> String
-showPastActions (PlayCard c) = "jugó " ++ show c
-showPastActions CallTruco    = "cantó truco"
-showPastActions Accept       = "aceptó"
-showPastActions Decline      = "no quiso"
-showPastActions Fold         = "se fue al mazo"
-showPastActions CallEnvido   = "cantó envido"
+showPastActions (PlayCard c)   = "jugó " ++ show c
+showPastActions CallEnvido     = "cantó envido"
+showPastActions CallTruco      = "cantó truco"
+showPastActions CallReTruco    = "cantó re truco"
+showPastActions CallValeCuatro = "cantó vale cuatro"
+showPastActions Accept         = "aceptó"
+showPastActions Decline        = "no quiso"
+showPastActions Fold           = "se fue al mazo"

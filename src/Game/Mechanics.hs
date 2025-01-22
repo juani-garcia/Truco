@@ -92,7 +92,8 @@ raiseTrucoActions n = case n of
     4 -> []
     m -> error $ "Estado inválido: se intento un truco de " ++ show m ++ " puntos."
 
--- Dado el estado actual de la mano, y una acción, devuelve el nuevo estado de apuestas
+-- Dado el estado actual de la mano, y una acción, devuelve el nuevo estado de apuestas.
+-- TODO: probablemente esto se pueda expresar de una forma más concisa.
 newBettingState :: HandState -> Action -> Maybe BettingState
 newBettingState s                                    (PlayCard _)   = Just $ bettingState s
 newBettingState HS{ bettingState = NoBetting       } CallEnvido     = Just $ EnvidoOffered 2
@@ -104,6 +105,8 @@ newBettingState HS{ bettingState = EnvidoOffered _ } Decline        = Just NoBet
 newBettingState HS{ bettingState = NoBetting       } CallTruco      = Just $ TrucoOffered 2
 newBettingState HS{ bettingState = TrucoOffered _  } CallReTruco    = Just $ TrucoOffered 3
 newBettingState HS{ bettingState = TrucoOffered _  } CallValeCuatro = Just $ TrucoOffered 4
+newBettingState HS{ bettingState = TrucoAccepted 2 } CallReTruco    = Just $ TrucoOffered 3
+newBettingState HS{ bettingState = TrucoAccepted 3 } CallValeCuatro = Just $ TrucoOffered 4
 newBettingState HS{ bettingState = TrucoOffered n  } Accept         = Just $ TrucoAccepted n
 newBettingState HS{ bettingState = TrucoOffered _  } Decline        = Just HandEnded
 newBettingState _                                    Fold           = Just HandEnded

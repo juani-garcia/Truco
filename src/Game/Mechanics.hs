@@ -38,24 +38,24 @@ calculateEnvidoWinner hs =
         _  -> p1
 
 -- *** ROUND MECHANICS ***
-analyzeRounds :: Player -> [RoundResult] -> HandResult
+analyzeRounds :: Player -> [RoundResult] -> TrucoResult
 analyzeRounds starter rs
-    | length rs <= 1                                       = NotFinished
-    | wonByPlayer P1 rs >= 2                               = HandWonBy P1
-    | wonByPlayer P2 rs >= 2                               = HandWonBy P2
-    | length rs == 2 && head rs /= Tie && rs !! 1 /= Tie   = NotFinished
-    | head rs /= Tie && (rs !! 1 == Tie || rs !! 2 == Tie) = HandWonBy (winnerOfRound (head rs)) -- "Primera vale doble"
-    | head rs == Tie && rs !! 1 /= Tie                     = HandWonBy (winnerOfRound (rs !! 1)) -- "Como parda la mejor"
-    | head rs == Tie && rs !! 1 == Tie && rs !! 2 /= Tie   = HandWonBy (winnerOfRound (rs !! 2))
-    | head rs == Tie && rs !! 1 == Tie && rs !! 2 == Tie   = HandWonBy starter                   -- "Gana la mano"
-    | otherwise                                            = NotFinished
+    | length rs <= 1                                       = TrucoNotFinished
+    | wonByPlayer P1 rs >= 2                               = TrucoWonBy P1
+    | wonByPlayer P2 rs >= 2                               = TrucoWonBy P2
+    | length rs == 2 && head rs /= Tie && rs !! 1 /= Tie   = TrucoNotFinished
+    | head rs /= Tie && (rs !! 1 == Tie || rs !! 2 == Tie) = TrucoWonBy (winnerOfRound (head rs)) -- "Primera vale doble"
+    | head rs == Tie && rs !! 1 /= Tie                     = TrucoWonBy (winnerOfRound (rs !! 1)) -- "Como parda la mejor"
+    | head rs == Tie && rs !! 1 == Tie && rs !! 2 /= Tie   = TrucoWonBy (winnerOfRound (rs !! 2))
+    | head rs == Tie && rs !! 1 == Tie && rs !! 2 == Tie   = TrucoWonBy starter                   -- "Gana la mano"
+    | otherwise                                            = TrucoNotFinished
     where
         winnerOfRound (RoundWonBy p) = p
         winnerOfRound Tie = error "Unexpected Tie"
         wonByPlayer p rs' = length $ filter (== RoundWonBy p) rs'
 
-analyzeHand :: HandState -> HandResult
-analyzeHand s@HS { bettingState = HandEnded } = HandWonBy $ currentPlayer s
+analyzeHand :: HandState -> TrucoResult
+analyzeHand s@HS { bettingState = HandEnded } = TrucoWonBy $ currentPlayer s -- Analizado después de cambiar de estado
 analyzeHand s                                 = analyzeRounds (startedBy s) (roundResults s)
 
 possibleActions :: HandState -> [ActionOpt]
@@ -138,7 +138,7 @@ applyAction hs a = do
         updateEnvidoPoints :: BettingState -> HandState -> Int
         updateEnvidoPoints (EnvidoOffered  _) HS{ bettingState = EnvidoOffered n } = n
         updateEnvidoPoints (EnvidoOffered  _) _                                    = 1
-        updateEnvidoPoints (EnvidoAccepted n) _                                    = n
+        updateEnvidoPoints (EnvidoAccepted m) _                                    = m
         updateEnvidoPoints _                  s                                    = envidoPoints s
 
         updateEnvidoWinner :: BettingState -> HandState -> Maybe Player
@@ -166,8 +166,8 @@ getHandPoints :: Player -> HandState -> Int
 getHandPoints p hs = getTrucoPoints p hs + getEnvidoPoints p hs
     where
         getTrucoPoints q s = case analyzeHand s of
-            HandWonBy q' -> if q == q' then trucoPoints s else 0
-            NotFinished  -> error "No se pueden pedir puntos de una mano que no finalizó."
+            TrucoWonBy q' -> if q == q' then trucoPoints s else 0
+            TrucoNotFinished   -> error "No se pueden pedir puntos de una mano que no finalizó."
         getEnvidoPoints q s
             | envidoWonBy s == Just q = envidoPoints s
             | otherwise               = 0

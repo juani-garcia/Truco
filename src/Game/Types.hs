@@ -41,7 +41,7 @@ data Player = P1 | P2 deriving (Eq, Show)
 
 data RoundResult = RoundWonBy Player | Tie deriving (Eq, Show)
 
-data HandResult = HandWonBy Player | NotFinished deriving (Eq, Show)
+data TrucoResult = TrucoWonBy Player | TrucoNotFinished deriving (Eq, Show)
 
 data Action
     = PlayCard Card
@@ -97,4 +97,13 @@ data HandState = HS
     , envidoPoints  :: Int
     , envidoWonBy   :: Maybe Player
     , showEnvido    :: Bool
+    , gameState     :: GameState           -- Para mostrar contexto y saber si hay algún ganador. No se lo actualiza durante la mano.
+    , handResult    :: Maybe PlayerPoints
+    } deriving (Show)
+
+type PlayerPoints = (Int, Int)
+
+data GameState = GS
+    { points        :: PlayerPoints
+    , numberOfHands :: Int
     } deriving (Show)

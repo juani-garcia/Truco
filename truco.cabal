@@ -64,7 +64,8 @@ executable truco
         Game.Mechanics,
         Game.Hand,
         Game.Types,
-        Game.Utils
+        Game.Utils,
+        Game.Core
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

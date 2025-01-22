@@ -11,8 +11,8 @@ import Data.List.Extra          (upper, lower)
 import System.Process.Extra     (system)
 import Data.List                (intercalate)
 
-initialHandState :: Player -> CardHand -> CardHand -> HandState
-initialHandState p h1 h2 = HS
+initialHandState :: Player -> CardHand -> CardHand -> GameState -> HandState
+initialHandState p h1 h2 gs = HS
     { hands         = (h1, h2)
     , actions       = []
     , cardsPlayed   = []
@@ -25,6 +25,8 @@ initialHandState p h1 h2 = HS
     , envidoPoints  = 0
     , envidoWonBy   = Nothing
     , showEnvido    = False
+    , gameState     = gs
+    , handResult    = Nothing
     }
 
 chooseAction :: Player -> HandState -> IO Action
@@ -55,32 +57,13 @@ chooseAction p s = do
                     putStrLn $ printf "Entrada inválida. Por favor, ingrese un número entre 1 y %d." l
                     getInput l
 
-handLoop :: HandState -> IO ()
-handLoop hs = do
-    printHandState hs
-    action <- chooseAction curr hs
-    let ms = applyAction hs action
-    case ms of
-        Nothing -> do
-            putStrLn "Acción inválida. Por favor, intente nuevamente."
-            handLoop hs
-        Just hs' -> do
-            let result = analyzeHand hs'
-            case result of
-                NotFinished -> handLoop hs'
-                _           -> do
-                    putStrLn "¡Finalizó la mano!"
-                    putStrLn $ printf "%s obtuvo %d puntos." (show P1) (getHandPoints P1 hs')
-                    putStrLn $ printf "%s obtuvo %d puntos." (show P2) (getHandPoints P2 hs')
-    where
-        curr = currentPlayer hs
-
 printHandState :: HandState -> IO ()
-printHandState s = do
-    let rs = roundResults s
-        as = actions s
-        n  = length rs + 1
+printHandState hs = do
     _ <- clear
+    printGameState $ gameState hs
+    let rs = roundResults hs
+        as = actions hs
+        n  = length rs + 1
     putStrLn $ printf "--- %s ---" (upper $ roundName n)
     unless (null rs) $ putStrLn "Resultados de cada ronda:"
     forM_ (zip [1..] rs) $ \(i, r) -> do 
@@ -92,7 +75,7 @@ printHandState s = do
     forM_ as $ \(p, a) -> 
         putStrLn $ printf "  %s: %s." (show p) (showPastActions a)
     
-    when (showEnvido s) $ printEnvido s
+    when (showEnvido hs) $ printEnvido hs
 
     where
         roundName :: Int -> String
@@ -118,7 +101,33 @@ printEnvido hs = do
         e1 = envido $ getPlayerInfo p1 (hands hs)
         e2 = envido $ getPlayerInfo p2 (hands hs)
 
-playHand :: IO ()
-playHand = do
+printGameState :: GameState -> IO () -- Para proveer un poco de contexto acerca de la partida
+printGameState gs = do
+    putStrLn "INFORMACIÓN DE LA PARTIDA"
+    let (p1, p2) = points gs
+        n        = numberOfHands  gs
+    putStrLn $ printf "     Mano #%d -> P1 %d\n                P2 %d" n p1 p2
+
+handLoop :: HandState -> IO HandState
+handLoop hs = do
+    printHandState hs
+    action <- chooseAction curr hs
+    let ms = applyAction hs action
+    case ms of
+        Nothing -> do
+            putStrLn "Acción inválida. Por favor, intente nuevamente."
+            handLoop hs
+        Just hs' -> do
+            let result = analyzeHand hs'
+            case result of
+                TrucoNotFinished -> handLoop hs'
+                _           -> do
+                    return hs'{ handResult = Just (getHandPoints P1 hs', getHandPoints P2 hs') }
+    where
+        curr = currentPlayer hs
+
+playHand :: GameState -> IO HandState
+playHand gs = do
     [h1, h2] <- deal 2
-    handLoop $ initialHandState P1 h1 h2
+    handLoop $ initialHandState P1 h1 h2 gs
+    

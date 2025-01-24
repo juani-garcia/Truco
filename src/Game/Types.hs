@@ -47,7 +47,7 @@ data Action
     = PlayCard Card
     | CallEnvido
     | CallRealEnvido
-    -- | CallFaltaEnvido
+    | CallFaltaEnvido
     | CallTruco
     | CallReTruco
     | CallValeCuatro
@@ -63,7 +63,7 @@ instance Show Action where
     show (PlayCard c)    = "Jugar " ++ show c
     show CallEnvido      = "Cantar envido"
     show CallRealEnvido  = "Cantar real envido"
-    -- show CallFaltaEnvido = "Echar la falta"
+    show CallFaltaEnvido = "Echar la falta"
     show CallTruco       = "Cantar truco"
     show CallReTruco     = "Cantar re truco"
     show CallValeCuatro  = "Cantar vale cuatro"

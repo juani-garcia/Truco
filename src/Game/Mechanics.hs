@@ -37,7 +37,25 @@ calculateEnvidoWinner hs =
         LT -> p2
         _  -> p1
 
+-- Cuántos puntos da la falta. El que no juega con estas reglas no sabe jugar al truco.
+faltaEnvidoPoints :: HandState -> Int
+faltaEnvidoPoints = aux . points . gameState
+    where
+        aux :: PlayerPoints -> Int
+        aux (p1, p2)
+                | m < lasBuenas = requiredPoints    -- Si estamos en las malas
+                | otherwise     = requiredPoints -m -- Lo que le falta al que va ganando
+            where
+                m = p1 `max` p2
+                lasBuenas = requiredPoints `div` 2
+
+wasFaltaCalled :: HandState -> Bool
+wasFaltaCalled HS{ actions = pas } = any ((==CallFaltaEnvido) . snd) pas
+
 -- *** ROUND MECHANICS ***
+requiredPoints :: Int
+requiredPoints = 30
+
 analyzeRounds :: Player -> [RoundResult] -> TrucoResult
 analyzeRounds starter rs
     | length rs <= 1                                       = TrucoNotFinished
@@ -58,26 +76,32 @@ analyzeHand :: HandState -> TrucoResult
 analyzeHand s@HS { bettingState = HandEnded } = TrucoWonBy $ currentPlayer s -- Analizado después de cambiar de estado
 analyzeHand s                                 = analyzeRounds (startedBy s) (roundResults s)
 
+-- TODO: que no se pueda no querer si eso significa perder la partida
 possibleActions :: HandState -> [ActionOpt]
 possibleActions hs@HS{ bettingState = NoBetting       } = noBettingActions hs
-possibleActions    HS{ bettingState = EnvidoOffered n } = envidoOfferedActions n
-possibleActions    HS{ bettingState = TrucoOffered  n } = trucoOfferedActions n
+possibleActions hs@HS{ bettingState = EnvidoOffered n } = envidoOfferedActions n $ wasFaltaCalled hs
+possibleActions    HS{ bettingState = TrucoOffered  n } = trucoOfferedActions n -- TODO: falta el temita de que el envido va primero...
 possibleActions    HS{ bettingState = TrucoAccepted n } = trucoAcceptedActions n
 possibleActions    hs                                   = error $ "Estado inválido: no hay posibles acciones. El estado era: " ++ show hs
 
 noBettingActions :: HandState -> [ActionOpt]
 noBettingActions hs =
        [P PlayCard]
-    ++ [S CallEnvido | null (roundResults hs) && (envidoPoints hs == 0)]
+    ++ [S x |
+          null (roundResults hs) && (envidoPoints hs == 0),
+          x <- [CallEnvido, CallRealEnvido, CallFaltaEnvido]]
     ++ map S [CallTruco, Fold]
 
-envidoOfferedActions :: Int -> [ActionOpt]
-envidoOfferedActions n = map S $ [Accept, Decline] ++ case n of
-    2 -> [CallEnvido, CallRealEnvido]
-    4 -> [CallRealEnvido]
-    5 -> []
-    7 -> []
-    m -> error $ "Estado inválido: se intentó ofrecer un envido por " ++  show m ++ " puntos."
+-- TODO: esto va a generar bugs cuando la falta envido valga 2 y 4 puntos respectivamente.
+envidoOfferedActions :: Int -> Bool -> [ActionOpt]
+envidoOfferedActions n faltaEnvidoCalled = map S $ [Accept, Decline] ++ if faltaEnvidoCalled
+    then
+        []
+    else 
+        (case n of
+            2 -> [CallEnvido, CallRealEnvido]
+            4 -> [CallRealEnvido]
+            _ -> []) ++ [CallFaltaEnvido] -- Solo para que aparezca última
 
 trucoOfferedActions :: Int -> [ActionOpt]
 trucoOfferedActions n = map S [Accept, Decline] ++ raiseTrucoActions n
@@ -93,24 +117,26 @@ raiseTrucoActions n = case n of
     m -> error $ "Estado inválido: se intento un truco de " ++ show m ++ " puntos."
 
 -- Dado el estado actual de la mano, y una acción, devuelve el nuevo estado de apuestas.
--- TODO: probablemente esto se pueda expresar de una forma más concisa.
+-- TODO: probablemente esto se pueda expresar de una forma más concisa, y sin repetir cosas
 newBettingState :: HandState -> Action -> Maybe BettingState
-newBettingState s                                    (PlayCard _)   = Just $ bettingState s
-newBettingState HS{ bettingState = NoBetting       } CallEnvido     = Just $ EnvidoOffered 2
-newBettingState HS{ bettingState = NoBetting       } CallRealEnvido = Just $ EnvidoOffered 3
-newBettingState HS{ bettingState = EnvidoOffered n } CallEnvido     = Just $ EnvidoOffered (n + 2)
-newBettingState HS{ bettingState = EnvidoOffered n } CallRealEnvido = Just $ EnvidoOffered (n + 3)
-newBettingState HS{ bettingState = EnvidoOffered n } Accept         = Just $ EnvidoAccepted n
-newBettingState HS{ bettingState = EnvidoOffered _ } Decline        = Just NoBetting
-newBettingState HS{ bettingState = NoBetting       } CallTruco      = Just $ TrucoOffered 2
-newBettingState HS{ bettingState = TrucoOffered _  } CallReTruco    = Just $ TrucoOffered 3
-newBettingState HS{ bettingState = TrucoOffered _  } CallValeCuatro = Just $ TrucoOffered 4
-newBettingState HS{ bettingState = TrucoAccepted 2 } CallReTruco    = Just $ TrucoOffered 3
-newBettingState HS{ bettingState = TrucoAccepted 3 } CallValeCuatro = Just $ TrucoOffered 4
-newBettingState HS{ bettingState = TrucoOffered n  } Accept         = Just $ TrucoAccepted n
-newBettingState HS{ bettingState = TrucoOffered _  } Decline        = Just HandEnded
-newBettingState _                                    Fold           = Just HandEnded
-newBettingState _                                    _              = Nothing
+newBettingState   s                                    (PlayCard _)    = Just $ bettingState s
+newBettingState   HS{ bettingState = NoBetting       } CallEnvido      = Just $ EnvidoOffered 2
+newBettingState   HS{ bettingState = NoBetting       } CallRealEnvido  = Just $ EnvidoOffered 3
+newBettingState s@HS{ bettingState = NoBetting       } CallFaltaEnvido = Just $ EnvidoOffered $ faltaEnvidoPoints s
+newBettingState   HS{ bettingState = EnvidoOffered n } CallEnvido      = Just $ EnvidoOffered (n + 2)
+newBettingState   HS{ bettingState = EnvidoOffered n } CallRealEnvido  = Just $ EnvidoOffered (n + 3)
+newBettingState s@HS{ bettingState = EnvidoOffered _ } CallFaltaEnvido = Just $ EnvidoOffered $ faltaEnvidoPoints s
+newBettingState   HS{ bettingState = EnvidoOffered n } Accept          = Just $ EnvidoAccepted n
+newBettingState   HS{ bettingState = EnvidoOffered _ } Decline         = Just NoBetting
+newBettingState   HS{ bettingState = NoBetting       } CallTruco       = Just $ TrucoOffered 2
+newBettingState   HS{ bettingState = TrucoOffered  _ } CallReTruco     = Just $ TrucoOffered 3
+newBettingState   HS{ bettingState = TrucoOffered  _ } CallValeCuatro  = Just $ TrucoOffered 4
+newBettingState   HS{ bettingState = TrucoAccepted 2 } CallReTruco     = Just $ TrucoOffered 3
+newBettingState   HS{ bettingState = TrucoAccepted 3 } CallValeCuatro  = Just $ TrucoOffered 4
+newBettingState   HS{ bettingState = TrucoOffered  n } Accept          = Just $ TrucoAccepted n
+newBettingState   HS{ bettingState = TrucoOffered  _ } Decline         = Just HandEnded
+newBettingState   _                                    Fold            = Just HandEnded
+newBettingState   _                                    _               = Nothing
 
 applyAction :: HandState -> Action -> Maybe HandState
 applyAction hs a = do
@@ -119,7 +145,7 @@ applyAction hs a = do
             PlayCard c -> (cardsPlayed hs ++ [(currentPlayer hs, c)], currentRound hs ++ [(currentPlayer hs, c)])
             _          -> (cardsPlayed hs, currentRound hs)
         mr   = getResult cr
-    return hs { actions       = actions hs ++ [(currentPlayer hs, a)]
+        hs' = hs { actions       = actions hs ++ [(currentPlayer hs, a)]
               , cardsPlayed   = cp
               , bettingState  = case bs of
                                   EnvidoAccepted _ -> NoBetting -- EnvidoAccepted es un estado efímero.
@@ -132,47 +158,62 @@ applyAction hs a = do
               , envidoWonBy   = updateEnvidoWinner bs hs
               , showEnvido    = updateShowEnvido bs hs
               }
-    where
-        updateTrucoPoints :: BettingState -> HandState -> Int -- BettingState representa el nuevo estado de apuestas
-        updateTrucoPoints (TrucoOffered  n) _ = n - 1
-        updateTrucoPoints (TrucoAccepted n) _ = n
-        updateTrucoPoints _                 s = trucoPoints s
 
-        updateEnvidoPoints :: BettingState -> HandState -> Int
-        updateEnvidoPoints (EnvidoOffered  _) HS{ bettingState = EnvidoOffered n } = n
-        updateEnvidoPoints (EnvidoOffered  _) _                                    = 1
-        updateEnvidoPoints (EnvidoAccepted m) _                                    = m
-        updateEnvidoPoints _                  s                                    = envidoPoints s
+    if hasEnvidoWinnerWon hs'
+        then return hs'{ bettingState = HandEnded, trucoPoints = 0 } -- "Early return" si el que ganó el envido gana la partida
+        else return hs'
+        where
+            updateTrucoPoints :: BettingState -> HandState -> Int -- BettingState representa el nuevo estado de apuestas
+            updateTrucoPoints (TrucoOffered  n) _ = n - 1
+            updateTrucoPoints (TrucoAccepted n) _ = n
+            updateTrucoPoints _                 s = trucoPoints s
 
-        updateEnvidoWinner :: BettingState -> HandState -> Maybe Player
-        updateEnvidoWinner (EnvidoAccepted _) s = Just $ calculateEnvidoWinner s
-        updateEnvidoWinner (EnvidoOffered  _) s = Just $ currentPlayer s
-        updateEnvidoWinner _                  s = envidoWonBy s
+            updateEnvidoPoints :: BettingState -> HandState -> Int
+            updateEnvidoPoints (EnvidoOffered  _) HS{ bettingState = EnvidoOffered n } = n
+            updateEnvidoPoints (EnvidoOffered  _) _                                    = 1
+            updateEnvidoPoints (EnvidoAccepted m) _                                    = m
+            updateEnvidoPoints _                  s                                    = envidoPoints s
 
-        updateShowEnvido :: BettingState -> HandState -> Bool
-        updateShowEnvido (EnvidoAccepted _) _ = True
-        updateShowEnvido _                  s = showEnvido s
+            updateEnvidoWinner :: BettingState -> HandState -> Maybe Player
+            updateEnvidoWinner (EnvidoAccepted _) s = Just $ calculateEnvidoWinner s
+            updateEnvidoWinner (EnvidoOffered  _) s = Just $ currentPlayer s
+            updateEnvidoWinner _                  s = envidoWonBy s
 
-        nextPlayer :: Maybe RoundResult -> HandState -> Action -> Player
-        nextPlayer (Just (RoundWonBy p)) _  _      = p
-        nextPlayer (Just Tie)            s  _      = startedBy s
-        nextPlayer _                     s  Accept = nextInRound s
-        nextPlayer _                     s  _      = theOther $ currentPlayer s
+            updateShowEnvido :: BettingState -> HandState -> Bool
+            updateShowEnvido (EnvidoAccepted _) _ = True
+            updateShowEnvido _                  s = showEnvido s
 
-        -- El próximo jugador siguiendo el orden de la ronda (ie, quién tiene que tirar)
-        nextInRound :: HandState -> Player
-        nextInRound s = case cardsPlayed s of
-            [] -> startedBy s
-            xs -> theOther $ fst (last xs)
+            nextPlayer :: Maybe RoundResult -> HandState -> Action -> Player
+            nextPlayer (Just (RoundWonBy p)) _  _      = p
+            nextPlayer (Just Tie)            s  _      = startedBy s
+            nextPlayer _                     s  Accept = nextInRound s
+            nextPlayer _                     s  _      = theOther $ currentPlayer s
+
+            -- El próximo jugador siguiendo el orden de la ronda (ie, quién tiene que tirar)
+            nextInRound :: HandState -> Player
+            nextInRound s = case cardsPlayed s of
+                [] -> startedBy s
+                xs -> theOther $ fst (last xs)
+
+            -- Si el que ganó el envido tiene más de 30 se termina la mano
+            hasEnvidoWinnerWon :: HandState -> Bool
+            hasEnvidoWinnerWon HS{ envidoWonBy = Just p, envidoPoints = n, gameState = GS{ points = pair } } =
+                let m = getPlayerInfo p pair
+                 in (m + n) >= requiredPoints
+            hasEnvidoWinnerWon _ = False
 
 getHandPoints :: Player -> HandState -> Int
 getHandPoints p hs = getTrucoPoints p hs + getEnvidoPoints p hs
     where
         getTrucoPoints q s = case analyzeHand s of
-            TrucoWonBy q' -> if q == q' then trucoPoints s else 0
+            TrucoWonBy q'      -> if q == q' then trucoPoints s else 0
             TrucoNotFinished   -> error "No se pueden pedir puntos de una mano que no finalizó."
         getEnvidoPoints q s
             | envidoWonBy s == Just q = envidoPoints s
             | otherwise               = 0
-        
 
+getWinner :: PlayerPoints -> Maybe Player
+getWinner (p1, p2)
+    | p1 >= requiredPoints = Just P1
+    | p2 >= requiredPoints = Just P2
+    | otherwise = Nothing

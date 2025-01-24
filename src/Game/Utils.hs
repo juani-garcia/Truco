@@ -45,12 +45,13 @@ getPlayerInfo :: Player -> (a, a) -> a
 getPlayerInfo p (x1, x2) = if p == P1 then x1 else x2
 
 showPastActions :: Action -> String
-showPastActions (PlayCard c)   = "jugó " ++ show c
-showPastActions CallEnvido     = "cantó envido"
-showPastActions CallRealEnvido = "cantó real envido"
-showPastActions CallTruco      = "cantó truco"
-showPastActions CallReTruco    = "cantó re truco"
-showPastActions CallValeCuatro = "cantó vale cuatro"
-showPastActions Accept         = "aceptó"
-showPastActions Decline        = "no quiso"
-showPastActions Fold           = "se fue al mazo"
+showPastActions (PlayCard c)    = "jugó " ++ show c
+showPastActions CallEnvido      = "cantó envido"
+showPastActions CallRealEnvido  = "cantó real envido"
+showPastActions CallFaltaEnvido = "echó la falta"
+showPastActions CallTruco       = "cantó truco"
+showPastActions CallReTruco     = "cantó re truco"
+showPastActions CallValeCuatro  = "cantó vale cuatro"
+showPastActions Accept          = "aceptó"
+showPastActions Decline         = "no quiso"
+showPastActions Fold            = "se fue al mazo"

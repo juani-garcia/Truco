@@ -1,6 +1,7 @@
 module Game.Core where
 
 import Game.Hand
+import Game.Mechanics   (getWinner) 
 import Game.Types
 import Text.Printf      (printf)
 
@@ -17,7 +18,7 @@ gameLoop gs = do
             Just pair -> pair
             Nothing   -> error "La mano no tiene puntos asignados"
         gs'      = updateGameState gs r
-        winner   = getWinner gs'
+        winner   = getWinner $ points gs'
     case winner of 
         Just p  -> putStrLn $ printf "¡%s ganó la partida!" (show p)
         Nothing -> do
@@ -33,15 +34,6 @@ gameLoop gs = do
             { points = (p1 + p1', p2 + p2')
             , numberOfHands = k + 1
             }
-        
-        pointsToWin :: Int
-        pointsToWin = 30
-
-        getWinner :: GameState -> Maybe Player
-        getWinner GS{ points = (p1, p2) }
-            | p1 >= pointsToWin  = Just P1
-            | p2 >= pointsToWin  = Just P2
-            | otherwise = Nothing
 
 playGame :: IO ()
 playGame = gameLoop initialGameState

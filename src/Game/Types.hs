@@ -106,4 +106,5 @@ type PlayerPoints = (Int, Int)
 data GameState = GS
     { points        :: PlayerPoints
     , numberOfHands :: Int
+    , starts        :: Player
     } deriving (Show)

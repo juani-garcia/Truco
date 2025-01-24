@@ -129,5 +129,5 @@ handLoop hs = do
 playHand :: GameState -> IO HandState
 playHand gs = do
     [h1, h2] <- deal 2
-    handLoop $ initialHandState P1 h1 h2 gs
+    handLoop $ initialHandState (starts gs) h1 h2 gs
     

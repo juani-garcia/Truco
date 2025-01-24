@@ -4,11 +4,13 @@ import Game.Hand
 import Game.Mechanics   (getWinner) 
 import Game.Types
 import Text.Printf      (printf)
+import Game.Utils (theOther)
 
 initialGameState :: GameState
 initialGameState = GS
     { points        = (0, 0)
     , numberOfHands = 1
+    , starts        = P1
     }
 
 gameLoop :: GameState -> IO ()
@@ -31,8 +33,9 @@ gameLoop gs = do
     where
         updateGameState :: GameState -> PlayerPoints -> GameState
         updateGameState GS{ points = (p1, p2), numberOfHands = k } (p1', p2') = GS 
-            { points = (p1 + p1', p2 + p2')
+            { points        = (p1 + p1', p2 + p2')
             , numberOfHands = k + 1
+            , starts        = theOther $ starts gs
             }
 
 playGame :: IO ()

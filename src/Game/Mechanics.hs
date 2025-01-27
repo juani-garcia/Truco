@@ -82,7 +82,7 @@ possibleActions hs@HS{ bettingState = NoBetting       } = noBettingActions hs
 possibleActions hs@HS{ bettingState = EnvidoOffered n } = envidoOfferedActions n $ wasFaltaCalled hs
 possibleActions    HS{ bettingState = TrucoOffered  n } = trucoOfferedActions n -- TODO: falta el temita de que el envido va primero...
 possibleActions    HS{ bettingState = TrucoAccepted n } = trucoAcceptedActions n
-possibleActions    hs                                   = error $ "Estado inválido: no hay posibles acciones. El estado era: " ++ show hs
+possibleActions    _                                    = error "Estado inválido: no hay posibles acciones."
 
 noBettingActions :: HandState -> [ActionOpt]
 noBettingActions hs =

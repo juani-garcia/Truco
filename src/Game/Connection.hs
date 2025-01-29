@@ -6,24 +6,29 @@ import Network.Socket
 import qualified Control.Exception as E
 import qualified Data.ByteString as BS
 
-import Control.Monad                    (unless)
-import Network.Socket.ByteString        (recv, sendAll)
-import Game.Deck                        (deal)
-import Text.Printf                      (printf)
-import Game.Mechanics                   (possibleActions)
-import Data.List                        (intercalate)
-import Control.Monad.Extra              (forM_)
-import Text.Read                        (readMaybe)
+import Control.Monad                (unless)
+import Network.Socket.ByteString    (recv, sendAll)
+import Game.Deck                    (deal)
+import Text.Printf                  (printf)
+import Game.Mechanics               (possibleActions)
+import Data.List                    (intercalate)
+import Control.Monad.Extra          (forM_)
+import Text.Read                    (readMaybe)
+import Game.Encoders                (encode, decode)
 
-menu :: IO Socket
+menu :: IO (Socket, Player)
 menu = do
     putStrLn "Seleccione una opción:"
     putStrLn "1. Esperar por jugador"
     putStrLn "2. Conectarse a jugador"
     option <- getLine
     case option of
-        "1" -> awaitForPlayer
-        "2" -> connectToPlayer
+        "1" -> do
+            s <- awaitForPlayer
+            return (s, P1)
+        "2" -> do
+            s <- connectToPlayer
+            return (s, P2)
         _   -> do
             putStrLn "Opción inválida, por favor intente de nuevo."
             menu
@@ -79,12 +84,6 @@ connectToPlayer = do
         unless (msg == reply) $ error "El otro jugador no envió lo esperado."
         return sock
 
-initializeLocally :: GameState -> IO HandState
-initializeLocally gs = do
-    [h1, h2] <- deal 2
-    return $ initialState h1 h2 gs
-
-
 getActionLocally :: HandState -> IO Action
 getActionLocally s = do
     putStrLn $ printf "%s, es tu turno." (show p)
@@ -98,7 +97,7 @@ getActionLocally s = do
     input <- getInput len
     unless (inBound len input) $ error "Entrada inválida."
     return $ pas !! (input - 1)
-    where
+  where
         p = currentPlayer s
         hand = case currentPlayer s of
             P1 -> fst (hands s)
@@ -113,3 +112,39 @@ getActionLocally s = do
                 _                          -> do
                     putStrLn $ printf "Entrada inválida. Por favor, ingrese un número entre 1 y %d." l
                     getInput l
+
+initializeViaSocket :: Socket -> GameState -> IO HandState
+initializeViaSocket sock gs = do
+    (h1, h2) <- getHand
+    return $ initialState h1 h2 gs
+  where
+    getHand = if toStart gs == P1 then sendHand else recvHand
+
+    sendHand :: IO (CardHand, CardHand)
+    sendHand = do
+        putStrLn "Sos mano, mandándole las cartas a tu contrincante..."
+        idxs <- chooseRandomIndices
+        sendAll sock $ BS.pack $ map fromIntegral idxs
+        return $ deal idxs
+
+    recvHand :: IO (CardHand, CardHand)
+    recvHand = do
+        putStrLn "Tu contrincante es mano. Esperando que te mande las cartas..."
+        bsIdxs <- recv sock 6
+        let idxs = map fromIntegral $ BS.unpack bsIdxs
+        return $ deal $ reverse idxs
+
+getActionViaSocket :: Socket -> HandState -> IO Action
+getActionViaSocket sock hs = do
+    if currentPlayer hs == P1
+        then getLocallyAndSend
+        else receiveAction
+  where
+    getLocallyAndSend = do
+        action <- getActionLocally hs
+        sendAll sock $ BS.pack [encode action]
+        return action
+
+    receiveAction = do
+        putStrLn "Esperando que juegue tu contrincante..."
+        decode . head . BS.unpack <$> recv sock 1

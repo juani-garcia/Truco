@@ -20,6 +20,9 @@ shuffle xs = do
         ioArray :: Int -> [a] -> IO (IOArray Int a)
         ioArray l = newListArray (1,l)
         
+chooseRandomIndices :: IO [Int] -- Me devuelve los índices de las cartas que se van a usar para una mano
+chooseRandomIndices = take 6 <$> shuffle [1..40]
+
 theOther :: Player -> Player
 theOther P1 = P2
 theOther P2 = P1
@@ -64,8 +67,8 @@ initialState h1 h2 gs = HS
     , roundResults  = []
     , currentRound  = []
     , bettingState  = NoBetting
-    , startedBy     = starts gs
-    , currentPlayer = starts gs
+    , startedBy     = toStart gs
+    , currentPlayer = toStart gs
     , trucoPoints   = 1
     , envidoPoints  = 0
     , envidoWonBy   = Nothing

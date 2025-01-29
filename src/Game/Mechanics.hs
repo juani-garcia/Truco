@@ -92,7 +92,6 @@ noBettingActions hs =
           x <- [CallEnvido, CallRealEnvido, CallFaltaEnvido]]
     ++ map S [CallTruco, Fold]
 
--- TODO: esto va a generar bugs cuando la falta envido valga 2 y 4 puntos respectivamente.
 envidoOfferedActions :: Int -> Bool -> [ActionOpt]
 envidoOfferedActions n faltaEnvidoCalled = map S $ [Accept, Decline] ++ if faltaEnvidoCalled
     then

@@ -106,7 +106,7 @@ type PlayerPoints = (Int, Int)
 data GameState = GS
     { points         :: PlayerPoints
     , numberOfHands  :: Int
-    , starts         :: Player
+    , toStart        :: Player            -- El jugador que arranca la mano
     , initializeHand :: GameState -> IO HandState
     , getAction      :: HandState -> IO Action
     }

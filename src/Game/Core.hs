@@ -5,16 +5,6 @@ import Game.Mechanics   (getWinner)
 import Game.Types
 import Text.Printf      (printf)
 import Game.Utils (theOther)
-import Game.Connection (initializeLocally, getActionLocally)
-
-initialGameState :: GameState
-initialGameState = GS
-    { points         = (0, 0)
-    , numberOfHands  = 1
-    , starts         = P1
-    , initializeHand = initializeLocally
-    , getAction      = getActionLocally
-    }
 
 gameLoop :: GameState -> IO ()
 gameLoop gs = do
@@ -25,7 +15,7 @@ gameLoop gs = do
         gs'      = updateGameState gs r
         winner   = getWinner $ points gs'
     case winner of
-        Just p  -> putStrLn $ printf "¡%s ganó la partida!" (show p)
+        Just p  -> putStrLn $ printf "¡%s la partida!" $ if p == P1 then "Ganaste" else "Perdiste"
         Nothing -> do
             putStrLn "\n¡Finalizó la mano!"
             putStrLn $ "  Puntos para P1: " ++ show p1
@@ -38,8 +28,8 @@ gameLoop gs = do
         updateGameState s@GS{ points = (p1, p2), numberOfHands = k } (p1', p2') = s
             { points        = (p1 + p1', p2 + p2')
             , numberOfHands = k + 1
-            , starts        = theOther $ starts gs
+            , toStart       = theOther $ toStart gs
             }
 
-playGame :: IO ()
-playGame = gameLoop initialGameState
+playGame :: GameState -> IO ()
+playGame = gameLoop

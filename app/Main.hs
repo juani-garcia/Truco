@@ -2,8 +2,10 @@ module Main where
 
 import Game.Connection
 import Game.Types
+import Game.CLI
+import Game.Core         (playGame)
+
 import Network.Socket
-import Game.Core (playGame)
 
 initialGameState :: Socket -> Player -> GameState
 initialGameState sock p = GS
@@ -17,5 +19,5 @@ initialGameState sock p = GS
 
 main :: IO ()
 main = do
-    (sock, starter) <- menu
+    (sock, starter) <- menu awaitForPlayer connectToPlayer
     playGame $ initialGameState sock starter

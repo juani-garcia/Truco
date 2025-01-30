@@ -74,5 +74,4 @@ initialState h1 h2 gs = HS
     , envidoWonBy   = Nothing
     , showEnvido    = False
     , gameState     = gs
-    , handResult    = Nothing
     }

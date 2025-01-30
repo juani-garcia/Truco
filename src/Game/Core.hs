@@ -1,28 +1,23 @@
-module Game.Core where
+module Game.Core (playGame) where
 
 import Game.Hand
-import Game.Mechanics   (getWinner)
+import Game.Mechanics   (getWinner, getHandResult)
 import Game.Types
-import Text.Printf      (printf)
-import Game.Utils (theOther)
+import Game.Utils       (theOther)
+import Game.CLI         (printHandResult)
+import Data.Maybe       (isNothing)
+import Control.Monad    (when)
 
 gameLoop :: GameState -> IO ()
 gameLoop gs = do
     finalState <- initializeHand gs gs >>= playHand
-    let r@(p1, p2) = case handResult finalState of
-            Just pair -> pair
-            Nothing   -> error "La finalizó sin puntos asignados."
-        gs'      = updateGameState gs r
-        winner   = getWinner $ points gs'
-    case winner of
-        Just p  -> putStrLn $ printf "¡%s la partida!" $ if p == P1 then "Ganaste" else "Perdiste"
-        Nothing -> do
-            putStrLn "\n¡Finalizó la mano!"
-            putStrLn $ "  Puntos para P1: " ++ show p1
-            putStrLn $ "  Puntos para P2: " ++ show p2
-            putStrLn   "\nPulse ENTER para continuar el juego..."
-            _ <- getLine
-            gameLoop gs'
+    let res    = getHandResult finalState
+        gs'    = updateGameState gs res
+        winner = getWinner $ points gs'
+    
+    printHandResult res winner
+    when (isNothing winner) $ gameLoop gs'
+
     where
         updateGameState :: GameState -> PlayerPoints -> GameState
         updateGameState s@GS{ points = (p1, p2), numberOfHands = k } (p1', p2') = s

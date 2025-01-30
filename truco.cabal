@@ -67,7 +67,8 @@ executable truco
         Game.Utils,
         Game.Core,
         Game.Connection,
-        Game.Encoders
+        Game.Encoders,
+        Game.CLI
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

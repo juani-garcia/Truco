@@ -96,7 +96,7 @@ envidoOfferedActions :: Int -> Bool -> [ActionOpt]
 envidoOfferedActions n faltaEnvidoCalled = map S $ [Accept, Decline] ++ if faltaEnvidoCalled
     then
         []
-    else 
+    else
         (case n of
             2 -> [CallEnvido, CallRealEnvido]
             4 -> [CallRealEnvido]
@@ -158,48 +158,51 @@ applyAction hs a = do
               , showEnvido    = updateShowEnvido bs hs
               }
 
-    if hasEnvidoWinnerWon hs'
+    if isEnvidoAcceptedState bs && hasEnvidoWinnerWon hs'
         then return hs'{ bettingState = HandEnded, trucoPoints = 0 } -- "Early return" si el que ganó el envido gana la partida
         else return hs'
-        where
-            updateTrucoPoints :: BettingState -> HandState -> Int -- BettingState representa el nuevo estado de apuestas
-            updateTrucoPoints (TrucoOffered  n) _ = n - 1
-            updateTrucoPoints (TrucoAccepted n) _ = n
-            updateTrucoPoints _                 s = trucoPoints s
+  where
+    updateTrucoPoints :: BettingState -> HandState -> Int -- BettingState representa el nuevo estado de apuestas
+    updateTrucoPoints (TrucoOffered  n) _ = n - 1
+    updateTrucoPoints (TrucoAccepted n) _ = n
+    updateTrucoPoints _                 s = trucoPoints s
 
-            updateEnvidoPoints :: BettingState -> HandState -> Int
-            updateEnvidoPoints (EnvidoOffered  _) HS{ bettingState = EnvidoOffered n } = n
-            updateEnvidoPoints (EnvidoOffered  _) _                                    = 1
-            updateEnvidoPoints (EnvidoAccepted m) _                                    = m
-            updateEnvidoPoints _                  s                                    = envidoPoints s
+    updateEnvidoPoints :: BettingState -> HandState -> Int
+    updateEnvidoPoints (EnvidoOffered  _) HS{ bettingState = EnvidoOffered n } = n
+    updateEnvidoPoints (EnvidoOffered  _) _                                    = 1
+    updateEnvidoPoints (EnvidoAccepted m) _                                    = m
+    updateEnvidoPoints _                  s                                    = envidoPoints s
 
-            updateEnvidoWinner :: BettingState -> HandState -> Maybe Player
-            updateEnvidoWinner (EnvidoAccepted _) s = Just $ calculateEnvidoWinner s
-            updateEnvidoWinner (EnvidoOffered  _) s = Just $ currentPlayer s
-            updateEnvidoWinner _                  s = envidoWonBy s
+    updateEnvidoWinner :: BettingState -> HandState -> Maybe Player
+    updateEnvidoWinner (EnvidoAccepted _) s = Just $ calculateEnvidoWinner s
+    updateEnvidoWinner (EnvidoOffered  _) s = Just $ currentPlayer s
+    updateEnvidoWinner _                  s = envidoWonBy s
 
-            updateShowEnvido :: BettingState -> HandState -> Bool
-            updateShowEnvido (EnvidoAccepted _) _ = True
-            updateShowEnvido _                  s = showEnvido s
+    updateShowEnvido :: BettingState -> HandState -> Bool
+    updateShowEnvido (EnvidoAccepted _) _ = True
+    updateShowEnvido _                  s = showEnvido s
 
-            nextPlayer :: Maybe RoundResult -> HandState -> Action -> Player
-            nextPlayer (Just (RoundWonBy p)) _  _      = p
-            nextPlayer (Just Tie)            s  _      = startedBy s
-            nextPlayer _                     s  Accept = nextInRound s
-            nextPlayer _                     s  _      = theOther $ currentPlayer s
+    nextPlayer :: Maybe RoundResult -> HandState -> Action -> Player
+    nextPlayer (Just (RoundWonBy p)) _  _      = p
+    nextPlayer (Just Tie)            s  _      = startedBy s
+    nextPlayer _                     s  Accept = nextInRound s
+    nextPlayer _                     s  _      = theOther $ currentPlayer s
 
-            -- El próximo jugador siguiendo el orden de la ronda (ie, quién tiene que tirar)
-            nextInRound :: HandState -> Player
-            nextInRound s = case cardsPlayed s of
-                [] -> startedBy s
-                xs -> theOther $ fst (last xs)
+    -- El próximo jugador siguiendo el orden de la ronda (ie, quién tiene que tirar)
+    nextInRound :: HandState -> Player
+    nextInRound s = case cardsPlayed s of
+        [] -> startedBy s
+        xs -> theOther $ fst (last xs)
 
-            -- Si el que ganó el envido tiene más de 30 se termina la mano
-            hasEnvidoWinnerWon :: HandState -> Bool
-            hasEnvidoWinnerWon HS{ envidoWonBy = Just p, envidoPoints = n, gameState = GS{ points = pair } } =
-                let m = getPlayerInfo p pair
-                 in (m + n) >= requiredPoints
-            hasEnvidoWinnerWon _ = False
+    -- Si el que ganó el envido tiene más de 30 se termina la mano
+    hasEnvidoWinnerWon :: HandState -> Bool
+    hasEnvidoWinnerWon HS{ envidoWonBy = Just p, envidoPoints = n, gameState = GS{ points = pair } } =
+        let m = getPlayerInfo p pair
+        in (m + n) >= requiredPoints
+    hasEnvidoWinnerWon _ = False
+
+    isEnvidoAcceptedState (EnvidoAccepted _) = True
+    isEnvidoAcceptedState _                  = False
 
 getHandPoints :: Player -> HandState -> Int
 getHandPoints p hs = getTrucoPoints p hs + getEnvidoPoints p hs
@@ -210,6 +213,9 @@ getHandPoints p hs = getTrucoPoints p hs + getEnvidoPoints p hs
         getEnvidoPoints q s
             | envidoWonBy s == Just q = envidoPoints s
             | otherwise               = 0
+
+getHandResult :: HandState -> PlayerPoints
+getHandResult hs = (getHandPoints P1 hs, getHandPoints P2 hs)
 
 getWinner :: PlayerPoints -> Maybe Player
 getWinner (p1, p2)

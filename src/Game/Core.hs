@@ -22,8 +22,7 @@ loop = do
     hs  <- liftIO $ initializeHand gs gs >>= playHand
     let res = getHandResult hs
     modify $ updateGameState res
-    gs' <- get
-    let winner = getWinner $ points gs'
+    winner <- getWinner . points <$> get
     liftIO $ printHandResult res winner
     when (isNothing winner) loop
   where

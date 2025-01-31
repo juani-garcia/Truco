@@ -17,10 +17,10 @@ loop = do
     liftIO $ printHandState hs
     action <- liftIO $ getAction (gameState hs) hs
     modify (newState action)
-    hs' <- get
-    case analyzeHand hs' of
+    res <- analyzeHand <$> get
+    case res of
         TrucoNotFinished -> loop
-        _                -> return hs'
+        _                -> get
   where
     newState action hs  = case applyAction hs action of
         Nothing  -> error $ "Acción inválida. La acción problemática es: " ++ show action

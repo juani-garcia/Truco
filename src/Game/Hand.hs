@@ -3,19 +3,26 @@ module Game.Hand (playHand) where
 import Game.Types
 import Game.Mechanics
 import Game.CLI
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.IO.Class
 
-handLoop :: HandState -> IO HandState
-handLoop hs = do
-    printHandState hs
-    action <- getAction (gameState hs) hs
-    let ms = applyAction hs action
-    case ms of
-        Nothing -> error $ "Acción inválida. La acción problemática es: " ++ show action
-        Just hs' -> do
-            let result = analyzeHand hs'
-            case result of
-                TrucoNotFinished -> handLoop hs'
-                _                -> return hs'
+type HandMonad = StateT HandState IO
 
 playHand :: HandState -> IO HandState
-playHand = handLoop
+playHand = evalStateT loop
+
+loop :: HandMonad HandState
+loop = do
+    hs <- get
+    liftIO $ printHandState hs
+    action <- liftIO $ getAction (gameState hs) hs
+    modify (newState action)
+    hs' <- get
+    case analyzeHand hs' of
+        TrucoNotFinished -> loop
+        _                -> return hs'
+  where
+    newState action hs  = case applyAction hs action of
+        Nothing  -> error $ "Acción inválida. La acción problemática es: " ++ show action
+        Just hs' -> hs'
+

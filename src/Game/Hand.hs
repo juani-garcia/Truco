@@ -1,4 +1,4 @@
-module Game.Hand where
+module Game.Hand (playHand) where
 
 import Game.Types
 import Game.Mechanics

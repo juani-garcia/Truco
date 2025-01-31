@@ -1,4 +1,4 @@
-module Game.Core where
+module Game.Core (playGame) where
 
 import Game.Hand
 import Game.Types

@@ -97,14 +97,17 @@ data HandState = HS
     , envidoPoints  :: Int
     , envidoWonBy   :: Maybe Player
     , showEnvido    :: Bool
-    , gameState     :: GameState           -- Para mostrar contexto y saber si hay algún ganador. No se lo actualiza durante la mano.
-    , handResult    :: Maybe PlayerPoints
-    } deriving (Show)
+    }
 
 type PlayerPoints = (Int, Int)
 
 data GameState = GS
-    { points        :: PlayerPoints
-    , numberOfHands :: Int
-    , starts        :: Player
-    } deriving (Show)
+    { points         :: PlayerPoints
+    , numberOfHands  :: Int
+    , toStart        :: Player            -- El jugador que arranca la mano
+    }
+
+data GameAgent = GameAgent
+    { initializeHand :: GameState -> IO HandState
+    , getAction      :: HandState -> IO Action
+    }

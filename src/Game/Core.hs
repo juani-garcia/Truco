@@ -1,42 +1,36 @@
-module Game.Core where
+module Game.Core (playGame) where
 
 import Game.Hand
-import Game.Mechanics   (getWinner) 
 import Game.Types
-import Text.Printf      (printf)
-import Game.Utils (theOther)
+import Game.Utils                       (theOther)
+import Game.CLI                         (printHandResult)
+import Game.Mechanics                   (getWinner, getHandResult)
 
-initialGameState :: GameState
-initialGameState = GS
-    { points        = (0, 0)
-    , numberOfHands = 1
-    , starts        = P1
-    }
+import Data.Maybe                       (isNothing)
+import Control.Monad                    (when)
+import Control.Monad.IO.Class           (liftIO)
+import Control.Monad.Trans.RWS.CPS      (RWST, get, modify, ask, evalRWST)
+import Control.Monad.Extra (void)
 
-gameLoop :: GameState -> IO ()
-gameLoop gs = do
-    hs <- playHand gs
-    let r@(p1, p2) = case handResult hs of
-            Just pair -> pair
-            Nothing   -> error "La mano no tiene puntos asignados"
-        gs'      = updateGameState gs r
-        winner   = getWinner $ points gs'
-    case winner of 
-        Just p  -> putStrLn $ printf "¡%s ganó la partida!" (show p)
-        Nothing -> do
-            putStrLn "\n¡Finalizó la mano!"
-            putStrLn $ "  Puntos para P1: " ++ show p1
-            putStrLn $ "  Puntos para P2: " ++ show p2
-            putStrLn   "\nPulse ENTER para continuar el juego..."
-            _ <- getLine
-            gameLoop gs' 
-    where
-        updateGameState :: GameState -> PlayerPoints -> GameState
-        updateGameState GS{ points = (p1, p2), numberOfHands = k } (p1', p2') = GS 
-            { points        = (p1 + p1', p2 + p2')
-            , numberOfHands = k + 1
-            , starts        = theOther $ starts gs
-            }
+type GameMonad = RWST GameAgent () GameState IO
 
-playGame :: IO ()
-playGame = gameLoop initialGameState
+playGame :: GameAgent -> GameState -> IO ()
+playGame agent gs = void $ evalRWST gameLoop agent gs
+
+gameLoop :: GameMonad ()
+gameLoop = do
+    agent <- ask
+    gs  <- get
+    hs  <- liftIO $ initializeHand agent gs >>= playHand (agent, gs)
+    let res = getHandResult hs
+    modify $ updateGameState res
+    winner <- getWinner . points <$> get
+    liftIO $ printHandResult res winner
+    when (isNothing winner) gameLoop
+  where
+    updateGameState :: PlayerPoints -> GameState -> GameState
+    updateGameState (p1', p2') s@GS{ points = (p1, p2), numberOfHands = k } = s
+        { points        = (p1 + p1', p2 + p2')
+        , numberOfHands = k + 1
+        , toStart       = theOther $ toStart s
+        }

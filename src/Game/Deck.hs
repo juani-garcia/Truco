@@ -1,7 +1,6 @@
 module Game.Deck where
 
 import Game.Types
-import Game.Utils
 
 createDeck :: Deck
 createDeck =
@@ -10,12 +9,9 @@ createDeck =
     , s <- [Oro, Copa, Espada, Basto]
     ]
 
-deal :: Int -> IO [CardHand]
-deal n = do
-    shuffledDeck <- shuffle createDeck
-    return $ take n $ dealHands shuffledDeck
-    where
-        dealHands :: Deck -> [CardHand]
-        dealHands [] = []
-        dealHands (c1:c2:c3:cs) = (c1, c2, c3) : dealHands cs
-        dealHands _ = error "No hay cartas suficientes para repartir"
+deal :: [Int] -> (CardHand, CardHand)
+deal indices = do
+    let selectedCards = map (createDeck !!) indices
+    case selectedCards of
+        [c1, c2, c3, c4, c5, c6] -> ((c1, c2, c3), (c4, c5, c6))
+        _ -> error "Se necesitan exactamente 6 índices para repartir las manos"

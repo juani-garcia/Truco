@@ -10,7 +10,7 @@ import Data.Maybe                       (isNothing)
 import Control.Monad                    (when)
 import Control.Monad.IO.Class           (liftIO)
 import Control.Monad.Trans.RWS.CPS      (RWST, get, modify, ask, evalRWST)
-import Control.Monad.Extra (void)
+import Control.Monad.Extra              (void)
 
 type GameMonad = RWST GameAgent () GameState IO
 

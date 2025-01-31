@@ -9,7 +9,7 @@ import Control.Monad.IO.Class           (MonadIO(liftIO))
 type HandMonad = RWST (GameAgent, GameState) () HandState IO
 
 playHand :: (GameAgent, GameState) -> HandState -> IO HandState
-playHand agent hs = fst <$> evalRWST handLoop agent hs
+playHand handCtx hs = fst <$> evalRWST handLoop handCtx hs
 
 handLoop :: HandMonad HandState
 handLoop = do

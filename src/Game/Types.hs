@@ -106,6 +106,9 @@ data GameState = GS
     { points         :: PlayerPoints
     , numberOfHands  :: Int
     , toStart        :: Player            -- El jugador que arranca la mano
-    , initializeHand :: GameState -> IO HandState
+    }
+
+data Context = Context
+    { initializeHand :: GameState -> IO HandState
     , getAction      :: HandState -> IO Action
     }

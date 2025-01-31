@@ -7,12 +7,16 @@ import Game.Core         (playGame)
 
 import Network.Socket
 
-initialGameState :: Socket -> Player -> GameState
-initialGameState sock p = GS
+initialGameState :: Player -> GameState
+initialGameState p = GS
     { points         = (0, 0)
     , numberOfHands  = 1
     , toStart        = p
-    , initializeHand = initializeViaSocket sock
+    }
+
+context :: Socket -> Context
+context sock = Context
+    { initializeHand = initializeViaSocket sock
     , getAction      = getActionViaSocket sock
     }
 
@@ -20,4 +24,4 @@ initialGameState sock p = GS
 main :: IO ()
 main = do
     (sock, starter) <- menu awaitForPlayer connectToPlayer
-    playGame $ initialGameState sock starter
+    playGame (context sock) (initialGameState starter)

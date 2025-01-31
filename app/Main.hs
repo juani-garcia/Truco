@@ -14,8 +14,8 @@ initialGameState p = GS
     , toStart        = p
     }
 
-context :: Socket -> Context
-context sock = Context
+agent :: Socket -> GameAgent
+agent sock = GameAgent
     { initializeHand = initializeViaSocket sock
     , getAction      = getActionViaSocket sock
     }
@@ -24,4 +24,4 @@ context sock = Context
 main :: IO ()
 main = do
     (sock, starter) <- menu awaitForPlayer connectToPlayer
-    playGame (context sock) (initialGameState starter)
+    playGame (agent sock) (initialGameState starter)

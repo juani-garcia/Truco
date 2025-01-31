@@ -70,7 +70,7 @@ printEnvido hs = do
         e1 = envido $ getPlayerInfo p1 (hands hs)
         e2 = envido $ getPlayerInfo p2 (hands hs)
 
-printGameState :: GameState -> IO () -- Para proveer un poco de contexto acerca de la partida
+printGameState :: GameState -> IO () -- Para proveer un poco de agento acerca de la partida
 printGameState gs = do
     putStrLn "INFORMACIÓN DE LA PARTIDA"
     let (p1, p2) = points gs

@@ -6,17 +6,17 @@ import Game.CLI
 import Control.Monad.Trans.RWS.CPS      (RWST, get, modify, ask, evalRWST)
 import Control.Monad.IO.Class           (MonadIO(liftIO))
 
-type HandMonad = RWST (Context, GameState) () HandState IO
+type HandMonad = RWST (GameAgent, GameState) () HandState IO
 
-playHand :: (Context, GameState) -> HandState -> IO HandState
-playHand cts hs = fst <$> evalRWST handLoop cts hs
+playHand :: (GameAgent, GameState) -> HandState -> IO HandState
+playHand agent hs = fst <$> evalRWST handLoop agent hs
 
 handLoop :: HandMonad HandState
 handLoop = do
-    (ctx, gs) <- ask
+    (agent, gs) <- ask
     hs <- get
     liftIO $ printHandState gs hs
-    action <- liftIO $ getAction ctx hs
+    action <- liftIO $ getAction agent hs
     modify (newState gs action)
     res <- analyzeHand <$> get
     case res of

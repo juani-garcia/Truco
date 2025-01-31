@@ -12,16 +12,16 @@ import Control.Monad.IO.Class           (liftIO)
 import Control.Monad.Trans.RWS.CPS      (RWST, get, modify, ask, evalRWST)
 import Control.Monad.Extra (void)
 
-type GameMonad = RWST Context () GameState IO
+type GameMonad = RWST GameAgent () GameState IO
 
-playGame :: Context -> GameState -> IO ()
-playGame ctx gs = void $ evalRWST gameLoop ctx gs
+playGame :: GameAgent -> GameState -> IO ()
+playGame agent gs = void $ evalRWST gameLoop agent gs
 
 gameLoop :: GameMonad ()
 gameLoop = do
-    ctx <- ask
+    agent <- ask
     gs  <- get
-    hs  <- liftIO $ initializeHand ctx gs >>= playHand (ctx, gs)
+    hs  <- liftIO $ initializeHand agent gs >>= playHand (agent, gs)
     let res = getHandResult hs
     modify $ updateGameState res
     winner <- getWinner . points <$> get

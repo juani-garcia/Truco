@@ -107,7 +107,7 @@ data GameState = GS
     , toStart        :: Player            -- El jugador que arranca la mano
     }
 
-data Context = Context
+data GameAgent = GameAgent
     { initializeHand :: GameState -> IO HandState
     , getAction      :: HandState -> IO Action
     }

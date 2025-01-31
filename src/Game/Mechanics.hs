@@ -143,18 +143,18 @@ applyAction gs a hs = do
             _          -> (cardsPlayed hs, currentRound hs)
         mr   = getResult cr
         hs' = hs { actions       = actions hs ++ [(currentPlayer hs, a)]
-              , cardsPlayed   = cp
-              , bettingState  = case bs of
-                                  EnvidoAccepted _ -> NoBetting -- EnvidoAccepted es un estado efímero.
-                                  _                -> bs
-              , currentPlayer = nextPlayer mr hs a
-              , currentRound  = if isJust mr then [] else cr
-              , roundResults  = roundResults hs ++ maybeToList mr
-              , trucoPoints   = updateTrucoPoints bs hs
-              , envidoPoints  = updateEnvidoPoints bs hs
-              , envidoWonBy   = updateEnvidoWinner bs hs
-              , showEnvido    = updateShowEnvido bs hs
-              }
+                 , cardsPlayed   = cp
+                 , bettingState  = case bs of
+                                     EnvidoAccepted _ -> NoBetting -- EnvidoAccepted es un estado efímero.
+                                     _                -> bs
+                 , currentPlayer = nextPlayer mr hs a
+                 , currentRound  = if isJust mr then [] else cr
+                 , roundResults  = roundResults hs ++ maybeToList mr
+                 , trucoPoints   = updateTrucoPoints bs hs
+                 , envidoPoints  = updateEnvidoPoints bs hs
+                 , envidoWonBy   = updateEnvidoWinner bs hs
+                 , showEnvido    = updateShowEnvido bs hs
+                 }
 
     if isEnvidoAcceptedState bs && hasEnvidoWinnerWon hs'
         then return hs'{ bettingState = HandEnded, trucoPoints = 0 } -- "Early return" si el que ganó el envido gana la partida

@@ -67,7 +67,7 @@ connectToPlayer = do
 initializeViaSocket :: Socket -> GameState -> IO HandState
 initializeViaSocket sock gs = do
     (h1, h2) <- getHand
-    return $ initialState h1 h2 gs
+    return $ initialState h1 h2 $ toStart gs
   where
     getHand = if toStart gs == P1 then sendHand else recvHand
 

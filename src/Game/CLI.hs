@@ -28,9 +28,9 @@ menu awaitFor connectTo = do
             putStrLn "Opción inválida, por favor intente de nuevo."
             menu awaitFor connectTo
 
-printHandState :: HandState -> IO ()
-printHandState hs = do
-    printGameState $ gameState hs
+printHandState :: GameState -> HandState -> IO ()
+printHandState gs hs = do
+    printGameState gs
     let rs = roundResults hs
         as = actions hs
         n  = length rs + 1
@@ -103,19 +103,19 @@ getActionLocally s = do
     unless (inBound len input) $ error "Entrada inválida."
     return $ pas !! (input - 1)
   where
-        p = currentPlayer s
-        hand = case currentPlayer s of
-            P1 -> fst (hands s)
-            P2 -> snd (hands s)
-        availableCards = filter (`notElem` map snd (cardsPlayed s)) $ toCardList hand
-        inBound l i = i >= 1 && i <= l
-        getInput :: Int -> IO Int
-        getInput l = do
-            input <- getLine
-            case readMaybe input of
-                Just n | inBound l n -> return n
-                _                          -> do
-                    putStrLn $ printf "Entrada inválida. Por favor, ingrese un número entre 1 y %d." l
-                    getInput l
+    p = currentPlayer s
+    hand = case currentPlayer s of
+        P1 -> fst (hands s)
+        P2 -> snd (hands s)
+    availableCards = filter (`notElem` map snd (cardsPlayed s)) $ toCardList hand
+    inBound l i = i >= 1 && i <= l
+    getInput :: Int -> IO Int
+    getInput l = do
+        input <- getLine
+        case readMaybe input of
+            Just n | inBound l n -> return n
+            _                          -> do
+                putStrLn $ printf "Entrada inválida. Por favor, ingrese un número entre 1 y %d." l
+                getInput l
 
 

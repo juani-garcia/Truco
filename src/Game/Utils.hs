@@ -59,19 +59,18 @@ showPastActions Accept          = "aceptó"
 showPastActions Decline         = "no quiso"
 showPastActions Fold            = "se fue al mazo"
 
-initialState :: CardHand -> CardHand -> GameState -> HandState
-initialState h1 h2 gs = HS
+initialState :: CardHand -> CardHand -> Player -> HandState
+initialState h1 h2 p = HS
     { hands         = (h1, h2)
     , actions       = []
     , cardsPlayed   = []
     , roundResults  = []
     , currentRound  = []
     , bettingState  = NoBetting
-    , startedBy     = toStart gs
-    , currentPlayer = toStart gs
+    , startedBy     = p
+    , currentPlayer = p
     , trucoPoints   = 1
     , envidoPoints  = 0
     , envidoWonBy   = Nothing
     , showEnvido    = False
-    , gameState     = gs
     }

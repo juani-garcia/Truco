@@ -97,7 +97,6 @@ data HandState = HS
     , envidoPoints  :: Int
     , envidoWonBy   :: Maybe Player
     , showEnvido    :: Bool
-    , gameState     :: GameState           -- Para mostrar contexto y saber si hay algún ganador. No se lo actualiza durante la mano.
     }
 
 type PlayerPoints = (Int, Int)

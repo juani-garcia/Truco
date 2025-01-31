@@ -38,16 +38,13 @@ calculateEnvidoWinner hs =
         _  -> p1
 
 -- Cuántos puntos da la falta. El que no juega con estas reglas no sabe jugar al truco.
-faltaEnvidoPoints :: HandState -> Int
-faltaEnvidoPoints = aux . points . gameState
-    where
-        aux :: PlayerPoints -> Int
-        aux (p1, p2)
-                | m < lasBuenas = requiredPoints    -- Si estamos en las malas
-                | otherwise     = requiredPoints -m -- Lo que le falta al que va ganando
-            where
-                m = p1 `max` p2
-                lasBuenas = requiredPoints `div` 2
+faltaEnvidoPoints :: PlayerPoints -> Int
+faltaEnvidoPoints (p1, p2)
+    | m < lasBuenas = requiredPoints     -- Si estamos en las malas
+    | otherwise     = requiredPoints - m -- Lo que le falta al que va ganando
+  where
+    m = p1 `max` p2
+    lasBuenas = requiredPoints `div` 2
 
 wasFaltaCalled :: HandState -> Bool
 wasFaltaCalled HS{ actions = pas } = any ((==CallFaltaEnvido) . snd) pas
@@ -67,10 +64,10 @@ analyzeRounds starter rs
     | head rs == Tie && rs !! 1 == Tie && rs !! 2 /= Tie   = TrucoWonBy (winnerOfRound (rs !! 2))
     | head rs == Tie && rs !! 1 == Tie && rs !! 2 == Tie   = TrucoWonBy starter                   -- "Gana la mano"
     | otherwise                                            = TrucoNotFinished
-    where
-        winnerOfRound (RoundWonBy p) = p
-        winnerOfRound Tie = error "Unexpected Tie"
-        wonByPlayer p rs' = length $ filter (== RoundWonBy p) rs'
+   where
+    winnerOfRound (RoundWonBy p) = p
+    winnerOfRound Tie = error "Unexpected Tie"
+    wonByPlayer p rs' = length $ filter (== RoundWonBy p) rs'
 
 analyzeHand :: HandState -> TrucoResult
 analyzeHand s@HS { bettingState = HandEnded } = TrucoWonBy $ currentPlayer s -- Analizado después de cambiar de estado
@@ -117,29 +114,30 @@ raiseTrucoActions n = case n of
 
 -- Dado el estado actual de la mano, y una acción, devuelve el nuevo estado de apuestas.
 -- TODO: probablemente esto se pueda expresar de una forma más concisa, y sin repetir cosas
-newBettingState :: HandState -> Action -> Maybe BettingState
-newBettingState   s                                    (PlayCard _)    = Just $ bettingState s
-newBettingState   HS{ bettingState = NoBetting       } CallEnvido      = Just $ EnvidoOffered 2
-newBettingState   HS{ bettingState = NoBetting       } CallRealEnvido  = Just $ EnvidoOffered 3
-newBettingState s@HS{ bettingState = NoBetting       } CallFaltaEnvido = Just $ EnvidoOffered $ faltaEnvidoPoints s
-newBettingState   HS{ bettingState = EnvidoOffered n } CallEnvido      = Just $ EnvidoOffered (n + 2)
-newBettingState   HS{ bettingState = EnvidoOffered n } CallRealEnvido  = Just $ EnvidoOffered (n + 3)
-newBettingState s@HS{ bettingState = EnvidoOffered _ } CallFaltaEnvido = Just $ EnvidoOffered $ faltaEnvidoPoints s
-newBettingState   HS{ bettingState = EnvidoOffered n } Accept          = Just $ EnvidoAccepted n
-newBettingState   HS{ bettingState = EnvidoOffered _ } Decline         = Just NoBetting
-newBettingState   HS{ bettingState = NoBetting       } CallTruco       = Just $ TrucoOffered 2
-newBettingState   HS{ bettingState = TrucoOffered  _ } CallReTruco     = Just $ TrucoOffered 3
-newBettingState   HS{ bettingState = TrucoOffered  _ } CallValeCuatro  = Just $ TrucoOffered 4
-newBettingState   HS{ bettingState = TrucoAccepted 2 } CallReTruco     = Just $ TrucoOffered 3
-newBettingState   HS{ bettingState = TrucoAccepted 3 } CallValeCuatro  = Just $ TrucoOffered 4
-newBettingState   HS{ bettingState = TrucoOffered  n } Accept          = Just $ TrucoAccepted n
-newBettingState   HS{ bettingState = TrucoOffered  _ } Decline         = Just HandEnded
-newBettingState   _                                    Fold            = Just HandEnded
-newBettingState   _                                    _               = Nothing
+newBettingState :: HandState -> PlayerPoints -> Action -> Maybe BettingState
+newBettingState s                                    _ (PlayCard _)    = Just $ bettingState s
+newBettingState HS{ bettingState = NoBetting       } _ CallEnvido      = Just $ EnvidoOffered 2
+newBettingState HS{ bettingState = NoBetting       } _ CallRealEnvido  = Just $ EnvidoOffered 3
+newBettingState HS{ bettingState = NoBetting       } p CallFaltaEnvido = Just $ EnvidoOffered $ faltaEnvidoPoints p
+newBettingState HS{ bettingState = EnvidoOffered n } _ CallEnvido      = Just $ EnvidoOffered (n + 2)
+newBettingState HS{ bettingState = EnvidoOffered n } _ CallRealEnvido  = Just $ EnvidoOffered (n + 3)
+newBettingState HS{ bettingState = EnvidoOffered _ } p CallFaltaEnvido = Just $ EnvidoOffered $ faltaEnvidoPoints p
+newBettingState HS{ bettingState = EnvidoOffered n } _ Accept          = Just $ EnvidoAccepted n
+newBettingState HS{ bettingState = EnvidoOffered _ } _ Decline         = Just NoBetting
+newBettingState HS{ bettingState = NoBetting       } _ CallTruco       = Just $ TrucoOffered 2
+newBettingState HS{ bettingState = TrucoOffered  _ } _ CallReTruco     = Just $ TrucoOffered 3
+newBettingState HS{ bettingState = TrucoOffered  _ } _ CallValeCuatro  = Just $ TrucoOffered 4
+newBettingState HS{ bettingState = TrucoAccepted 2 } _ CallReTruco     = Just $ TrucoOffered 3
+newBettingState HS{ bettingState = TrucoAccepted 3 } _ CallValeCuatro  = Just $ TrucoOffered 4
+newBettingState HS{ bettingState = TrucoOffered  n } _ Accept          = Just $ TrucoAccepted n
+newBettingState HS{ bettingState = TrucoOffered  _ } _ Decline         = Just HandEnded
+newBettingState _                                    _ Fold            = Just HandEnded
+newBettingState _                                    _ _               = Nothing
 
-applyAction :: HandState -> Action -> Maybe HandState
-applyAction hs a = do
-    bs <- newBettingState hs a
+-- El GameState lo necesito para saber los puntos de la mano, para poder calcular cuanto vale la falta.
+applyAction :: GameState -> Action -> HandState -> Maybe HandState
+applyAction gs a hs = do
+    bs <- newBettingState hs (points gs) a 
     let (cp, cr) = case a of
             PlayCard c -> (cardsPlayed hs ++ [(currentPlayer hs, c)], currentRound hs ++ [(currentPlayer hs, c)])
             _          -> (cardsPlayed hs, currentRound hs)
@@ -196,8 +194,8 @@ applyAction hs a = do
 
     -- Si el que ganó el envido tiene más de 30 se termina la mano
     hasEnvidoWinnerWon :: HandState -> Bool
-    hasEnvidoWinnerWon HS{ envidoWonBy = Just p, envidoPoints = n, gameState = GS{ points = pair } } =
-        let m = getPlayerInfo p pair
+    hasEnvidoWinnerWon HS{ envidoWonBy = Just p, envidoPoints = n } =
+        let m = getPlayerInfo p $ points gs
         in (m + n) >= requiredPoints
     hasEnvidoWinnerWon _ = False
 

@@ -21,7 +21,7 @@ gameLoop :: GameMonad ()
 gameLoop = do
     ctx <- ask
     gs  <- get
-    hs  <- liftIO $ initializeHand ctx gs >>= playHand ctx
+    hs  <- liftIO $ initializeHand ctx gs >>= playHand (ctx, gs)
     let res = getHandResult hs
     modify $ updateGameState res
     winner <- getWinner . points <$> get

@@ -6,23 +6,23 @@ import Game.CLI
 import Control.Monad.Trans.RWS.CPS      (RWST, get, modify, ask, evalRWST)
 import Control.Monad.IO.Class           (MonadIO(liftIO))
 
-type HandMonad = RWST Context () HandState IO
+type HandMonad = RWST (Context, GameState) () HandState IO
 
-playHand :: Context -> HandState -> IO HandState
+playHand :: (Context, GameState) -> HandState -> IO HandState
 playHand cts hs = fst <$> evalRWST handLoop cts hs
 
 handLoop :: HandMonad HandState
 handLoop = do
-    ctx <- ask
+    (ctx, gs) <- ask
     hs <- get
-    liftIO $ printHandState hs
+    liftIO $ printHandState gs hs
     action <- liftIO $ getAction ctx hs
-    modify (newState action)
+    modify (newState gs action)
     res <- analyzeHand <$> get
     case res of
         TrucoNotFinished -> handLoop
         _                -> get
   where
-    newState action hs  = case applyAction hs action of
+    newState gs action hs  = case applyAction gs action hs of
         Nothing  -> error $ "Acción inválida. La acción problemática es: " ++ show action
         Just hs' -> hs'

@@ -17,7 +17,9 @@ menu awaitFor connectTo = do
     putStrLn "1. Esperar por jugador"
     putStrLn "2. Conectarse a jugador"
     option <- getLine
-    case option of
+    readOption option
+  where
+    readOption opt = case opt of
         "1" -> do
             s <- awaitFor
             return (s, P1)
@@ -46,14 +48,13 @@ printHandState gs hs = do
         putStrLn $ printf "  %s: %s." (show p) (showPastActions a)
     
     when (showEnvido hs) $ printEnvido hs
-
-    where
-        roundName :: Int -> String
-        roundName k = case k of
-            1 -> "Primera"
-            2 -> "Segunda"
-            3 -> "Tercera"
-            _ -> ""
+  where
+    roundName :: Int -> String
+    roundName k = case k of
+        1 -> "Primera"
+        2 -> "Segunda"
+        3 -> "Tercera"
+        _ -> ""
 
 printEnvido :: HandState -> IO ()
 printEnvido hs = do
@@ -64,13 +65,13 @@ printEnvido hs = do
             putStrLn $ printf "  %s dice que %d son mejores." (show p2) e2
         else do
             putStrLn $ printf "  %s dice que %d son buenas..." (show p2) e1
-    where
-        p1 = startedBy hs
-        p2 = theOther p1
-        e1 = envido $ getPlayerInfo p1 (hands hs)
-        e2 = envido $ getPlayerInfo p2 (hands hs)
+  where
+    p1 = startedBy hs
+    p2 = theOther p1
+    e1 = envido $ getPlayerInfo p1 (hands hs)
+    e2 = envido $ getPlayerInfo p2 (hands hs)
 
-printGameState :: GameState -> IO () -- Para proveer un poco de agento acerca de la partida
+printGameState :: GameState -> IO ()
 printGameState gs = do
     putStrLn "INFORMACIÓN DE LA PARTIDA"
     let (p1, p2) = points gs

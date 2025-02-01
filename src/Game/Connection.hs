@@ -12,12 +12,20 @@ import qualified Data.ByteString as BS
 
 import Control.Monad                (unless)
 import Network.Socket.ByteString    (recv, sendAll)
+import System.IO.Error              (isDoesNotExistError, isPermissionError, isAlreadyInUseError)
+import Control.Exception.Base       (SomeException)
+import Data.Data                    (Typeable)
 
 host :: HostName
 host = "localhost" -- TODO: que esto sea configurable
 
 port :: ServiceName
 port = "3333"
+
+data UnexpectedMessageException = UnexpectedMessageException
+  deriving (Show, Typeable)
+
+instance E.Exception UnexpectedMessageException
 
 awaitForPlayer :: IO Socket
 awaitForPlayer = do
@@ -29,7 +37,7 @@ awaitForPlayer = do
               addrFlags      = [AI_PASSIVE]
             , addrSocketType = Stream
             }
-        head <$> getAddrInfo (Just hints) (Just host) (Just port)
+        head <$> getAddrInfo (Just hints) Nothing (Just port)
 
     open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
         setSocketOption sock ReuseAddr 1
@@ -42,7 +50,7 @@ awaitForPlayer = do
         (conn, _peer) <- accept sock
         msg <- recv conn 1
         let expected = BS.pack [0]
-        unless (msg == expected) $ error "El otro jugador no envió lo esperado"
+        unless (msg == expected) $ E.throwIO UnexpectedMessageException
         sendAll conn msg
         return conn
 
@@ -99,3 +107,21 @@ getActionViaSocket sock hs = do
     receiveAction = do
         putStrLn "Esperando que juegue tu contrincante..."
         decode . head . BS.unpack <$> recv sock 1
+
+handleException :: SomeException -> IO ()
+handleException = putStrLn . humanReadable
+
+humanReadable :: SomeException -> String
+humanReadable se =
+  case E.fromException se of
+    Just UnexpectedMessageException ->
+      "Error: se recibió un mensaje inesperado. Verifica que tu contrincante este corriendo la misma versión del ejecutable."
+    Nothing ->
+      case E.fromException se :: Maybe E.IOException of
+        Just ioe
+          | isDoesNotExistError ioe -> "Error: el recurso solicitado no existe. Verifica la dirección o puerto."
+          | isPermissionError   ioe -> "Error: permiso denegado. Intenta ejecutar el programa con privilegios de administrador."
+          | isAlreadyInUseError ioe -> "Error: el puerto ya está en uso. Prueba con otro puerto."
+          | otherwise               -> "Error inesperado estableciendo la conexión: " ++ show ioe
+        Nothing ->
+          "Error desconocido: " ++ show se

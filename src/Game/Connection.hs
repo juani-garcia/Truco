@@ -6,7 +6,6 @@ import Game.CLI
 import Game.Deck                    (deal)
 import Game.Encoders                (encode, decode)
 
-import Network.Socket
 import qualified Control.Exception as E
 import qualified Data.ByteString as BS
 
@@ -15,12 +14,10 @@ import Network.Socket.ByteString    (recv, sendAll)
 import System.IO.Error              (isDoesNotExistError, isPermissionError, isAlreadyInUseError)
 import Control.Exception.Base       (SomeException)
 import Data.Data                    (Typeable)
+import Network.Socket hiding        (defaultPort)
 
-host :: HostName
-host = "localhost" -- TODO: que esto sea configurable
-
-port :: ServiceName
-port = "3333"
+defaultPort :: ServiceName
+defaultPort = "3333"
 
 data UnexpectedMessageException = UnexpectedMessageException
   deriving (Show, Typeable)
@@ -37,7 +34,7 @@ awaitForPlayer = do
               addrFlags      = [AI_PASSIVE]
             , addrSocketType = Stream
             }
-        head <$> getAddrInfo (Just hints) Nothing (Just port)
+        head <$> getAddrInfo (Just hints) Nothing (Just defaultPort)
 
     open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
         setSocketOption sock ReuseAddr 1
@@ -56,14 +53,24 @@ awaitForPlayer = do
 
 connectToPlayer :: IO Socket
 connectToPlayer = do
-    addr <- resolve
+    putStrLn "Ingrese la IP y puerto de su contrincante (ip:puerto)."
+    input <- getLine
+    let (host, port) = parseInput input
+    addr <- resolve host port
     open addr
   where
-    resolve = do
+    parseInput input =
+        let (host, portPart) = break (== ':') input
+        in if null portPart
+            then (host, defaultPort)
+            else (host, drop 1 portPart)
+
+    resolve host port = do
         let hints = defaultHints {
               addrSocketType = Stream
             }
         head <$> getAddrInfo (Just hints) (Just host) (Just port)
+
     open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
         connect sock $ addrAddress addr
         let msg = BS.pack [0]

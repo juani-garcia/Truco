@@ -1,4 +1,5 @@
 module Game.Types where
+import Network.Socket (HostName, ServiceName)
 
 -- Type definitions related to cards and deck
 data Suit = Oro | Copa | Espada | Basto deriving (Show, Eq)
@@ -111,3 +112,10 @@ data GameAgent = GameAgent
     { initializeHand :: GameState -> IO HandState
     , getAction      :: HandState -> IO Action
     }
+
+data Options = Options
+    { mhost       :: Maybe HostName
+    , mport       :: Maybe ServiceName
+    , listenFlag  :: Bool
+    , connectFlag :: Bool
+    } deriving Show

@@ -3,8 +3,8 @@ module Game.Hand (playHand) where
 import Game.Types
 import Game.Mechanics
 import Game.CLI
-import Control.Monad.Trans.RWS.CPS      (RWST, get, modify, ask, evalRWST)
 import Control.Monad.IO.Class           (MonadIO(liftIO))
+import Control.Monad.Trans.RWS.Strict   (RWST, get, gets, modify, ask, evalRWST)
 
 type HandMonad = RWST (GameAgent, GameState) () HandState IO
 
@@ -18,7 +18,7 @@ handLoop = do
     liftIO $ printHandState gs hs
     action <- liftIO $ getAction agent hs
     modify (newState gs action)
-    res <- analyzeHand <$> get
+    res <- gets analyzeHand
     case res of
         TrucoNotFinished -> handLoop
         _                -> get

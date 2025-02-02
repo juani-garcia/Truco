@@ -1,4 +1,11 @@
-module Game.Connection where
+module Game.Connection
+    ( getConnection
+    , awaitForPlayer
+    , connectToPlayer
+    , initializeViaSocket
+    , getActionViaSocket
+    , agent
+    , handleException) where
 
 import Game.Types
 import Game.Utils
@@ -14,11 +21,30 @@ import System.IO.Error              (isDoesNotExistError, isPermissionError, isA
 import Network.Socket hiding        (defaultPort)
 import System.Exit                  (exitFailure)
 import Control.Exception            (throwIO)
+import Control.Applicative          (Alternative((<|>)))
 import Control.Monad.Extra          (when)
 import Data.Word                    (Word8)
+import Data.Maybe                   (fromMaybe)
+
+
+getConnection :: Options -> IO (Socket, Player)
+getConnection opts = do
+    when (connectFlag opts && listenFlag opts) $ throwIO (userError "Los flags -c y -l son mutuamente excluyentes.")
+    if listenFlag opts
+        then do
+            sock <- awaitForPlayer (mhost opts) (mport opts)
+            return (sock, P1)
+    else if connectFlag opts
+        then do
+            sock <- connectToPlayer (mhost opts) (mport opts)
+            return (sock, P2)
+    else menu (awaitForPlayer Nothing Nothing) (connectToPlayer Nothing Nothing)
 
 defaultPort :: ServiceName
 defaultPort = "3333"
+
+defaultHost :: HostName
+defaultHost = "localhost"
 
 safeRecv :: Socket -> Int -> IO [Word8]
 safeRecv sock n = do
@@ -28,11 +54,11 @@ safeRecv sock n = do
 
 safeSend :: Socket -> [Word8] -> IO ()
 safeSend sock msg = do
-    E.catch (sendAll sock $ BS.pack msg) 
+    E.catch (sendAll sock $ BS.pack msg)
             (\(E.SomeException _) -> throwIO (userError "No se pudo enviar el mensaje a tu contrincante."))
 
-awaitForPlayer :: IO Socket
-awaitForPlayer = do
+awaitForPlayer :: Maybe HostName -> Maybe ServiceName -> IO Socket
+awaitForPlayer mh mp = do
     addr <- resolve
     E.bracket (open addr) close awaitConn
   where
@@ -41,7 +67,7 @@ awaitForPlayer = do
               addrFlags      = [AI_PASSIVE]
             , addrSocketType = Stream
             }
-        head <$> getAddrInfo (Just hints) Nothing (Just defaultPort)
+        head <$> getAddrInfo (Just hints) mh (mp <|> Just defaultPort)
 
     open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
         setSocketOption sock ReuseAddr 1
@@ -51,32 +77,35 @@ awaitForPlayer = do
         return sock
 
     awaitConn sock = do
+        let host = fromMaybe "*" mh
+            port = fromMaybe defaultPort mp
+        putStrLn $ "Esperando conexiones en " ++ host ++ ":" ++ port
         (conn, _peer) <- accept sock
         return conn
 
-connectToPlayer :: IO Socket
-connectToPlayer = do
-    putStrLn "Ingrese la IP y puerto de su contrincante (ip:puerto)."
-    input <- getLine
-    let (host, port) = parseInput input
-    addr <- resolve host port
+connectToPlayer :: Maybe HostName -> Maybe ServiceName -> IO Socket
+connectToPlayer mh mp = do
+    addr <- resolve
     open addr
   where
-    parseInput input =
-        let (host, portPart) = break (== ':') input
-        in if null portPart
-            then (host, defaultPort)
-            else (host, drop 1 portPart)
-
-    resolve host port = do
+    resolve = do
         let hints = defaultHints {
               addrSocketType = Stream
             }
-        head <$> getAddrInfo (Just hints) (Just host) (Just port)
+        head <$> getAddrInfo (Just hints) (mh <|> Just defaultHost) (mp <|> Just defaultPort)
 
     open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
+        let host = fromMaybe "localhost" mh
+            port = fromMaybe defaultPort mp
+        putStrLn $ "Intentando conectarse a " ++ host ++ ":" ++ port
         connect sock $ addrAddress addr
         return sock
+
+agent :: Socket -> GameAgent
+agent sock = GameAgent
+    { initializeHand = initializeViaSocket sock
+    , getAction      = getActionViaSocket sock
+    }
 
 initializeViaSocket :: Socket -> GameState -> IO HandState
 initializeViaSocket sock gs = do
@@ -116,7 +145,7 @@ getActionViaSocket sock hs = do
         return $ decode $ head msg
 
 handleException :: E.IOException -> IO ()
-handleException ex = do 
+handleException ex = do
     putStrLn $ humanReadable ex
     exitFailure
 

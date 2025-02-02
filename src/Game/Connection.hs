@@ -11,18 +11,12 @@ import qualified Data.ByteString as BS
 
 import Control.Monad                (unless)
 import Network.Socket.ByteString    (recv, sendAll)
-import System.IO.Error              (isDoesNotExistError, isPermissionError, isAlreadyInUseError)
-import Control.Exception.Base       (SomeException)
-import Data.Data                    (Typeable)
+import System.IO.Error              (isDoesNotExistError, isPermissionError, isAlreadyInUseError, isUserError)
 import Network.Socket hiding        (defaultPort)
+import System.Exit                  (exitFailure)
 
 defaultPort :: ServiceName
 defaultPort = "3333"
-
-data UnexpectedMessageException = UnexpectedMessageException
-  deriving (Show, Typeable)
-
-instance E.Exception UnexpectedMessageException
 
 awaitForPlayer :: IO Socket
 awaitForPlayer = do
@@ -47,7 +41,7 @@ awaitForPlayer = do
         (conn, _peer) <- accept sock
         msg <- recv conn 1
         let expected = BS.pack [0]
-        unless (msg == expected) $ E.throwIO UnexpectedMessageException
+        unless (msg == expected) $ E.throwIO (userError "El contrincante no envió lo esperado.")
         sendAll conn msg
         return conn
 
@@ -76,7 +70,7 @@ connectToPlayer = do
         let msg = BS.pack [0]
         sendAll sock msg
         reply <- recv sock 1
-        unless (msg == reply) $ error "El otro jugador no envió lo esperado."
+        unless (msg == reply) $ E.throwIO (userError "El contrincante no envió lo esperado.")
         return sock
 
 initializeViaSocket :: Socket -> GameState -> IO HandState
@@ -115,20 +109,15 @@ getActionViaSocket sock hs = do
         putStrLn "Esperando que juegue tu contrincante..."
         decode . head . BS.unpack <$> recv sock 1
 
-handleException :: SomeException -> IO ()
-handleException = putStrLn . humanReadable
+handleException :: E.IOException -> IO ()
+handleException ex = do 
+    putStrLn $ humanReadable ex
+    exitFailure
 
-humanReadable :: SomeException -> String
-humanReadable se =
-  case E.fromException se of
-    Just UnexpectedMessageException ->
-      "Error: se recibió un mensaje inesperado. Verifica que tu contrincante este corriendo la misma versión del ejecutable."
-    Nothing ->
-      case E.fromException se :: Maybe E.IOException of
-        Just ioe
-          | isDoesNotExistError ioe -> "Error: el recurso solicitado no existe. Verifica la dirección o puerto."
-          | isPermissionError   ioe -> "Error: permiso denegado. Intenta ejecutar el programa con privilegios de administrador."
-          | isAlreadyInUseError ioe -> "Error: el puerto ya está en uso. Prueba con otro puerto."
-          | otherwise               -> "Error inesperado estableciendo la conexión: " ++ show ioe
-        Nothing ->
-          "Error desconocido: " ++ show se
+humanReadable :: E.IOException -> String
+humanReadable ioe
+  | isDoesNotExistError ioe = "Error: el recurso solicitado no existe. Verifica la dirección o puerto."
+  | isPermissionError   ioe = "Error: permiso denegado. Intenta ejecutar el programa con privilegios de administrador."
+  | isAlreadyInUseError ioe = "Error: el puerto ya está en uso. Prueba con otro puerto."
+  | isUserError         ioe = "Error: el contrincante no envió lo esperado."
+  | otherwise               = "Error inesperado estableciendo la conexión: " ++ show ioe

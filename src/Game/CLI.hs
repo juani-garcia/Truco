@@ -11,7 +11,7 @@ import Network.Socket       (Socket)
 import Data.List            (intercalate)
 import Text.Read            (readMaybe)
 
-menu :: IO Socket -> IO Socket -> IO (Socket, Player)
+menu :: IO (Socket, GameState) -> IO (Socket, GameState) -> IO (Socket, GameState)
 menu awaitFor connectTo = do
     putStrLn "Seleccione una opción:"
     putStrLn "1. Esperar por jugador"
@@ -20,12 +20,8 @@ menu awaitFor connectTo = do
     readOption option
   where
     readOption opt = case opt of
-        "1" -> do
-            s <- awaitFor
-            return (s, P1)
-        "2" -> do
-            s <- connectTo
-            return (s, P2)
+        "1" -> awaitFor
+        "2" -> connectTo
         _   -> do
             putStrLn "Opción inválida, por favor intente de nuevo."
             menu awaitFor connectTo

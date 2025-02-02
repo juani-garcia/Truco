@@ -101,11 +101,14 @@ data HandState = HS
     }
 
 type PlayerPoints = (Int, Int)
+type Name = String
+type PlayerNames = (Name, Name)
 
 data GameState = GS
     { points         :: PlayerPoints
     , numberOfHands  :: Int
     , toStart        :: Player            -- El jugador que arranca la mano
+    , names          :: PlayerNames
     }
 
 data GameAgent = GameAgent
@@ -116,6 +119,7 @@ data GameAgent = GameAgent
 data Options = Options
     { mhost       :: Maybe HostName
     , mport       :: Maybe ServiceName
+    , mname       :: Maybe Name
     , listenFlag  :: Bool
     , connectFlag :: Bool
     } deriving Show

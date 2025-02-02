@@ -14,14 +14,8 @@ import Control.Monad.Trans.RWS.Strict   (RWST, get, gets, modify, ask, evalRWST)
 
 type GameMonad = RWST GameAgent () GameState IO
 
-playGame :: GameAgent -> Player -> IO ()
-playGame agent p = void $ evalRWST gameLoop agent initialGameState
-  where
-    initialGameState = GS
-        { points         = (0, 0)
-        , numberOfHands  = 1
-        , toStart        = p
-        }
+playGame :: GameAgent -> GameState -> IO ()
+playGame agent gs = void $ evalRWST gameLoop agent gs
 
 gameLoop :: GameMonad ()
 gameLoop = do

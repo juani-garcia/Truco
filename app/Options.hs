@@ -18,6 +18,12 @@ optionsParser = Options
         <> metavar "PORT"
         <> help "Puerto sobre el cual realizar la conexión. Por default es el 3333"
         ))
+    <*> optional (strOption
+        (  long "name"
+        <> short 'n'
+        <> metavar "NAME"
+        <> help "Tu nombre :)"
+        ))
     <*> switch
         (  long "listen"
         <> short 'l'

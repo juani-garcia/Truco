@@ -25,20 +25,31 @@ import Control.Applicative          (Alternative((<|>)))
 import Control.Monad.Extra          (when)
 import Data.Word                    (Word8)
 import Data.Maybe                   (fromMaybe)
+import Data.Char                    (ord, chr)
 
 
-getConnection :: Options -> IO (Socket, Player)
+getConnection :: Options -> IO (Socket, GameState)
 getConnection opts = do
     when (connectFlag opts && listenFlag opts) $ throwIO (userError "Los flags -c y -l son mutuamente excluyentes.")
+    name <- getName (mname opts)
     if listenFlag opts
-        then do
-            sock <- awaitForPlayer (mhost opts) (mport opts)
-            return (sock, P1)
+        then awaitForPlayer name (mhost opts) (mport opts)
     else if connectFlag opts
-        then do
-            sock <- connectToPlayer (mhost opts) (mport opts)
-            return (sock, P2)
-    else menu (awaitForPlayer Nothing Nothing) (connectToPlayer Nothing Nothing)
+        then connectToPlayer name (mhost opts) (mport opts)
+    else menu (awaitForPlayer name Nothing Nothing) (connectToPlayer name Nothing Nothing)
+  where
+    validateName n
+        | length n <= 16 = return n
+        | otherwise = do
+            putStrLn "¡El nombre es muy largo! Como máximo 16 caracteres."
+            promptForName
+
+    promptForName = do
+        putStrLn "Ingrese su nombre (máximo 16 caracteres):"
+        name <- getLine
+        validateName name
+
+    getName = maybe promptForName validateName
 
 defaultPort :: ServiceName
 defaultPort = "3333"
@@ -57,8 +68,16 @@ safeSend sock msg = do
     E.catch (sendAll sock $ BS.pack msg)
             (\(E.SomeException _) -> throwIO (userError "No se pudo enviar el mensaje a tu contrincante."))
 
-awaitForPlayer :: Maybe HostName -> Maybe ServiceName -> IO Socket
-awaitForPlayer mh mp = do
+initialGameState :: Player -> Name -> Name -> GameState
+initialGameState p n1 n2 = GS {
+      points        = (0, 0)
+    , numberOfHands = 0
+    , toStart       = p
+    , names         = (n1, n2)
+    }
+
+awaitForPlayer :: Name -> Maybe HostName -> Maybe ServiceName -> IO (Socket, GameState)
+awaitForPlayer name mh mp = do
     addr <- resolve
     E.bracket (open addr) close awaitConn
   where
@@ -81,10 +100,13 @@ awaitForPlayer mh mp = do
             port = fromMaybe defaultPort mp
         putStrLn $ "Esperando conexiones en " ++ host ++ ":" ++ port
         (conn, _peer) <- accept sock
-        return conn
+        rivalName <- map (chr . fromIntegral) <$> safeRecv conn 16
+        safeSend conn $ map (fromIntegral . ord) name
+        putStrLn $ "¡" ++ rivalName ++ " se conectó exitosamente!"
+        return (conn, initialGameState P1 name rivalName)
 
-connectToPlayer :: Maybe HostName -> Maybe ServiceName -> IO Socket
-connectToPlayer mh mp = do
+connectToPlayer :: Name -> Maybe HostName -> Maybe ServiceName -> IO (Socket, GameState)
+connectToPlayer name mh mp = do
     addr <- resolve
     open addr
   where
@@ -99,7 +121,10 @@ connectToPlayer mh mp = do
             port = fromMaybe defaultPort mp
         putStrLn $ "Intentando conectarse a " ++ host ++ ":" ++ port
         connect sock $ addrAddress addr
-        return sock
+        safeSend sock $ map (fromIntegral . ord) name
+        rivalName <- map (chr . fromIntegral) <$> safeRecv sock 16
+        putStrLn $ "¡" ++ rivalName ++ " se conectó exitosamente!"
+        return (sock, initialGameState P2 name rivalName)
 
 agent :: Socket -> GameAgent
 agent sock = GameAgent

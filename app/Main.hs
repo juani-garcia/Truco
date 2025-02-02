@@ -4,7 +4,7 @@ import Game.Connection
 import Game.Types
 import Game.CLI
 import Game.Core            (playGame)
-import Control.Exception    (try)
+import Control.Exception    (handle)
 
 import Network.Socket
 
@@ -21,11 +21,10 @@ agent sock = GameAgent
     , getAction      = getActionViaSocket sock
     }
 
-
 main :: IO ()
 main = do
-    result <- try $ menu awaitForPlayer connectToPlayer
-    case result of
-        Left e                -> handleException e
-        Right (sock, starter) -> playGame (agent sock) (initialGameState starter)
+    handle handleException $ do
+        (sock, starter) <- menu awaitForPlayer connectToPlayer
+        playGame (agent sock) (initialGameState starter)
+        close sock
     

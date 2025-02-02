@@ -9,14 +9,27 @@ import Game.Encoders                (encode, decode)
 import qualified Control.Exception as E
 import qualified Data.ByteString as BS
 
-import Control.Monad                (unless)
 import Network.Socket.ByteString    (recv, sendAll)
-import System.IO.Error              (isDoesNotExistError, isPermissionError, isAlreadyInUseError, isUserError)
+import System.IO.Error              (isDoesNotExistError, isPermissionError, isAlreadyInUseError, isUserError, ioeGetErrorString)
 import Network.Socket hiding        (defaultPort)
 import System.Exit                  (exitFailure)
+import Control.Exception            (throwIO)
+import Control.Monad.Extra          (when)
+import Data.Word                    (Word8)
 
 defaultPort :: ServiceName
 defaultPort = "3333"
+
+safeRecv :: Socket -> Int -> IO [Word8]
+safeRecv sock n = do
+    msg <- BS.unpack <$> recv sock n
+    when (null msg) $ throwIO (userError "Tu contrincante cerró la conexión.")
+    return msg
+
+safeSend :: Socket -> [Word8] -> IO ()
+safeSend sock msg = do
+    E.catch (sendAll sock $ BS.pack msg) 
+            (\(E.SomeException _) -> throwIO (userError "No se pudo enviar el mensaje a tu contrincante."))
 
 awaitForPlayer :: IO Socket
 awaitForPlayer = do
@@ -39,10 +52,6 @@ awaitForPlayer = do
 
     awaitConn sock = do
         (conn, _peer) <- accept sock
-        msg <- recv conn 1
-        let expected = BS.pack [0]
-        unless (msg == expected) $ E.throwIO (userError "El contrincante no envió lo esperado.")
-        sendAll conn msg
         return conn
 
 connectToPlayer :: IO Socket
@@ -67,10 +76,6 @@ connectToPlayer = do
 
     open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
         connect sock $ addrAddress addr
-        let msg = BS.pack [0]
-        sendAll sock msg
-        reply <- recv sock 1
-        unless (msg == reply) $ E.throwIO (userError "El contrincante no envió lo esperado.")
         return sock
 
 initializeViaSocket :: Socket -> GameState -> IO HandState
@@ -84,15 +89,14 @@ initializeViaSocket sock gs = do
     sendHand = do
         putStrLn "Sos mano, mandándole las cartas a tu contrincante..."
         idxs <- chooseRandomIndices
-        sendAll sock $ BS.pack $ map fromIntegral idxs
+        safeSend sock $ map fromIntegral idxs
         return $ deal idxs
 
     recvHand :: IO (CardHand, CardHand)
     recvHand = do
         putStrLn "Tu contrincante es mano. Esperando que te mande las cartas..."
-        bsIdxs <- recv sock 6
-        let idxs = map fromIntegral $ BS.unpack bsIdxs
-        return $ deal $ reverse idxs
+        idxs <- safeRecv sock 6
+        return $ deal $ reverse $ map fromIntegral idxs
 
 getActionViaSocket :: Socket -> HandState -> IO Action
 getActionViaSocket sock hs = do
@@ -107,7 +111,9 @@ getActionViaSocket sock hs = do
 
     receiveAction = do
         putStrLn "Esperando que juegue tu contrincante..."
-        decode . head . BS.unpack <$> recv sock 1
+        msg <- BS.unpack <$> recv sock 1
+        when (null msg) $ throwIO (userError "Tu contrincante cerró la conexión.")
+        return $ decode $ head msg
 
 handleException :: E.IOException -> IO ()
 handleException ex = do 
@@ -119,5 +125,5 @@ humanReadable ioe
   | isDoesNotExistError ioe = "Error: el recurso solicitado no existe. Verifica la dirección o puerto."
   | isPermissionError   ioe = "Error: permiso denegado. Intenta ejecutar el programa con privilegios de administrador."
   | isAlreadyInUseError ioe = "Error: el puerto ya está en uso. Prueba con otro puerto."
-  | isUserError         ioe = "Error: el contrincante no envió lo esperado."
+  | isUserError         ioe = "Error: " ++ ioeGetErrorString ioe
   | otherwise               = "Error inesperado estableciendo la conexión: " ++ show ioe

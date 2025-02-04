@@ -8,10 +8,10 @@ import Control.Monad.Trans.RWS.Strict   (RWST, get, gets, modify, ask, evalRWST)
 
 type HandMonad = RWST (GameAgent, GameState) () HandState IO
 
-playHand :: (GameAgent, GameState) -> HandState -> IO HandState
+playHand :: (GameAgent, GameState) -> HandState -> IO PlayerPoints
 playHand handCtx hs = fst <$> evalRWST handLoop handCtx hs
 
-handLoop :: HandMonad HandState
+handLoop :: HandMonad PlayerPoints
 handLoop = do
     (agent, gs) <- ask
     hs <- get
@@ -21,7 +21,7 @@ handLoop = do
     res <- gets analyzeHand
     case res of
         TrucoNotFinished -> handLoop
-        _                -> get
+        _                -> gets getHandResult
   where
     newState gs action hs  = case applyAction gs action hs of
         Nothing  -> error $ "Acción inválida. La acción problemática es: " ++ show action

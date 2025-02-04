@@ -4,7 +4,7 @@ import Game.Hand
 import Game.Types
 import Game.Utils                       (theOther)
 import Game.CLI                         (printHandResult)
-import Game.Mechanics                   (getWinner, getHandResult)
+import Game.Mechanics                   (getWinner)
 
 import Data.Maybe                       (isNothing)
 import Control.Monad                    (when)
@@ -21,8 +21,7 @@ gameLoop :: GameMonad ()
 gameLoop = do
     agent <- ask
     gs  <- get
-    hs  <- liftIO $ initializeHand agent gs >>= playHand (agent, gs)
-    let res = getHandResult hs
+    res  <- liftIO $ initializeHand agent gs >>= playHand (agent, gs)
     modify $ updateGameState res
     winner <- gets (getWinner . points)
     liftIO $ printHandResult res winner

@@ -10,7 +10,7 @@ import Data.Maybe                       (isNothing)
 import Control.Monad                    (when)
 import Control.Monad.IO.Class           (liftIO)
 import Control.Monad.Extra              (void)
-import Control.Monad.Trans.RWS.Strict   (RWST, get, gets, modify, ask, evalRWST)
+import Control.Monad.Trans.RWS.Strict   (RWST, get, modify, ask, evalRWST)
 
 type GameMonad = RWST GameAgent () GameState IO
 
@@ -23,8 +23,9 @@ gameLoop = do
     gs  <- get
     res  <- liftIO $ initializeHand agent gs >>= playHand (agent, gs)
     modify $ updateGameState res
-    winner <- gets (getWinner . points)
-    liftIO $ printHandResult res winner
+    gs' <- get
+    let winner = getWinner $ points gs'
+    liftIO $ printHandResult gs' winner
     when (isNothing winner) gameLoop
   where
     updateGameState :: PlayerPoints -> GameState -> GameState

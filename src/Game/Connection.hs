@@ -71,7 +71,7 @@ safeSend sock msg = do
 initialGameState :: Player -> Name -> Name -> GameState
 initialGameState p n1 n2 = GS {
       points        = (0, 0)
-    , numberOfHands = 0
+    , numberOfHands = 1
     , toStart       = p
     , names         = (n1, n2)
     }

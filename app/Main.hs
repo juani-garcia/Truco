@@ -11,7 +11,7 @@ main :: IO ()
 main = do
     opts <- getOptions
     handle handleException $ do
-        (sock, starter) <- getConnection opts
-        playGame (agent sock) starter
+        (sock, initialState) <- getConnection opts
+        playGame (agent sock) initialState
         close sock
     

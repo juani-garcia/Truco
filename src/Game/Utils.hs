@@ -21,7 +21,7 @@ shuffle xs = do
         ioArray l = newListArray (1,l)
         
 chooseRandomIndices :: IO [Int] -- Me devuelve los índices de las cartas que se van a usar para una mano
-chooseRandomIndices = take 6 <$> shuffle [1..40]
+chooseRandomIndices = take 6 <$> shuffle [0..39]
 
 theOther :: Player -> Player
 theOther P1 = P2

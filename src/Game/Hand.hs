@@ -17,6 +17,7 @@ handLoop = do
     hs <- get
     liftIO $ printHandState gs hs
     action <- liftIO $ getAction agent hs
+    liftIO $ printLastAction (currentPlayer hs, action) gs
     modify (newState gs action)
     res <- gets analyzeHand
     case res of

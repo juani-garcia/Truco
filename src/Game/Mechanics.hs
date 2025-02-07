@@ -137,7 +137,7 @@ newBettingState _                                    _ _               = Nothing
 -- El GameState lo necesito para saber los puntos de la mano, para poder calcular cuanto vale la falta.
 applyAction :: GameState -> Action -> HandState -> Maybe HandState
 applyAction gs a hs = do
-    bs <- newBettingState hs (points gs) a 
+    bs <- newBettingState hs (points gs) a
     let (cp, cr) = case a of
             PlayCard c -> (cardsPlayed hs ++ [(currentPlayer hs, c)], currentRound hs ++ [(currentPlayer hs, c)])
             _          -> (cardsPlayed hs, currentRound hs)
@@ -153,7 +153,7 @@ applyAction gs a hs = do
                  , trucoPoints   = updateTrucoPoints bs hs
                  , envidoPoints  = updateEnvidoPoints bs hs
                  , envidoWonBy   = updateEnvidoWinner bs hs
-                 , showEnvido    = updateShowEnvido bs hs
+                 , showEnvido    = not (showEnvido hs) && updateShowEnvido bs hs -- Para que se muestre solo una vez
                  }
 
     if isEnvidoAcceptedState bs && hasEnvidoWinnerWon hs'

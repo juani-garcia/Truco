@@ -34,6 +34,7 @@ printHandState gs hs = do
     printRoundInfo
     printActions
     printEnvido
+    printPlayerHand
   where
     clear = do
         _ <- system "clear"
@@ -90,11 +91,11 @@ printHandState gs hs = do
         let pas = filter (simpleAction . snd) $ actions hs
         unless (null pas) $ putStrLn "Acciones de la mano:"
         forM_ pas $ \(p, a) -> do
-            putStrLn $ printf "  %s: %s" (getPlayerInfo p (names gs)) (showPastActions a)
+            putStrLn $ formatAction p (getPlayerInfo p $ names gs) a
 
       where
         simpleAction (PlayCard _) = False
-        simpleAction _            = True  
+        simpleAction _            = True
 
     printEnvido = when (showEnvido hs) $ do
         putStrLn "Resultados del envido:"
@@ -112,6 +113,10 @@ printHandState gs hs = do
         e1 = envido $ getPlayerInfo p1 (hands hs)
         e2 = envido $ getPlayerInfo p2 (hands hs)
 
+    printPlayerHand = do
+        putStrLn $ printf "Tu mano es: %s." (intercalate ", " $ map show availableCards)
+      where
+        availableCards = filter (`notElem` map snd (cardsPlayed hs)) $ toCardList (getPlayerInfo P1 $ hands hs)
 
 printHandResult :: GameState -> Maybe Player -> IO ()
 printHandResult gs@GS{ points = (p1, p2) } winner = do
@@ -119,13 +124,46 @@ printHandResult gs@GS{ points = (p1, p2) } winner = do
         Just p  -> putStrLn $ printf "¡%s la partida!" $ if p == P1 then "Ganaste" else "Perdiste"
         Nothing -> do
             putStrLn "\n¡Finalizó la mano!"
-            putStrLn $ printf "  Puntos para %s: %d" (name P1) p1
-            putStrLn $ printf "  Puntos para %s: %d" (name P2) p2
-            putStrLn   "\nPulse ENTER para continuar el juego..."
+            putStrLn $ printf "  %-16s: %d" (name P1) p1
+            putStrLn $ printf "  %-16s: %d" (name P2) p2
+            putStrLn   "\nPulse ENTER para jugar la siguiente mano..."
             _ <- getLine
             return ()
   where
     name p = getPlayerInfo p $ names gs
+
+printLastAction :: PlayerAction -> GameState -> IO ()
+printLastAction (p, a) gs = do
+    putStrLn $ printf "Última acción: %s" $ formatAction p (getPlayerInfo p $ names gs) a
+
+formatAction :: Player -> Name -> Action -> String
+formatAction p rivalName = case p of
+    P1 -> showYourAction
+    P2 -> showRivalAction rivalName
+
+showYourAction :: Action -> String
+showYourAction (PlayCard c)    = "Jugaste " ++ show c
+showYourAction CallEnvido      = "Cantaste envido"
+showYourAction CallRealEnvido  = "Cantaste real envido"
+showYourAction CallFaltaEnvido = "Echaste la falta"
+showYourAction CallTruco       = "Cantaste truco"
+showYourAction CallReTruco     = "Cantaste re truco"
+showYourAction CallValeCuatro  = "Cantaste vale cuatro"
+showYourAction Accept          = "Quisiste"
+showYourAction Decline         = "No quisiste"
+showYourAction Fold            = "Te fuiste al mazo"
+
+showRivalAction :: Name -> Action -> String
+showRivalAction name (PlayCard c)    = printf "%s jugó %s" (show c) name
+showRivalAction name CallEnvido      = printf "%s cantó envido" name
+showRivalAction name CallRealEnvido  = printf "%s cantó real envido" name
+showRivalAction name CallFaltaEnvido = printf "%s echó la falta" name
+showRivalAction name CallTruco       = printf "%s cantó truco" name
+showRivalAction name CallReTruco     = printf "%s cantó re truco" name
+showRivalAction name CallValeCuatro  = printf "%s cantó vale cuatro" name
+showRivalAction name Accept          = printf "%s quiso" name
+showRivalAction name Decline         = printf "%s no quiso" name
+showRivalAction name Fold            = printf "%s se fue al mazo" name
 
 getActionLocally :: HandState -> IO Action
 getActionLocally s = do
@@ -133,7 +171,6 @@ getActionLocally s = do
     let acs = availableCards
         pas = optsToActions (possibleActions s) acs
         len = length pas
-    putStrLn $ printf "Tu mano es: %s." (intercalate ", " $ map show acs)
     unless (len > 0) $ error "No hay acciones válidas para realizar."
     forM_ (zip ([1..] :: [Int]) pas) $ \(i, a) -> putStrLn $ printf "  %d. %s" i (show a)
     putStrLn "Elegí una de las opciones:"
